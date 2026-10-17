@@ -1,0 +1,43 @@
+name: Live smoke test
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Production URL
+        default: https://can-i-afford-it-ashen.vercel.app
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    env:
+      U: ${{ inputs.url || github.event.deployment_status.environment_url }}
+    steps:
+      - name: Home page
+        run: |
+          code=$(curl -s -o page.html -w "%{http_code}" "$U/")
+          echo "home $code"
+          grep -o "Can I Afford It[^<]*" page.html | head -1
+          grep -o 'mode-switch[^<]*<[^<]*' page.html | head -1 || true
+          test "$code" = 200
+      - name: Config (/api/health)
+        run: curl -s "$U/api/health" | tee health.json; echo
+      - name: Claude reply (/api/ask)
+        run: |
+          curl -s -D headers.txt "$U/api/ask" -H 'content-type: application/json' \
+            -d '{"text":"can I afford a $400 jacket?","persona":"grandma","history":[]}' | tee ask.json; echo
+          grep -i x-fallback-reason headers.txt || echo "no fallback header"
+      - name: Voice (/api/speak)
+        run: |
+          for p in grandma chef; do
+            curl -s -o /dev/null -w "speak $p: %{http_code} %{content_type} %{size_download} bytes %{time_starttransfer}s first byte\n" \
+              "$U/api/speak?text=Testing%20one%20two&persona=$p"
+          done
+      - name: Live agent token (/api/agent-token)
+        run: curl -s -o /dev/null -w "agent-token %{http_code}\n" "$U/api/agent-token"
+      - name: Security headers
+        run: curl -sI "$U/" | grep -iE "x-frame|permissions-policy|x-content-type|strict-transport" || true
