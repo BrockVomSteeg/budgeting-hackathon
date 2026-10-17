@@ -1,4 +1,4 @@
-import { CATEGORY_IDS, type Budget, type CategoryId, type Verdict } from "./types.ts";
+import { CATEGORY_IDS, type Budget, type CategoryId, type LastItem, type Verdict } from "./types.ts";
 
 export const TIGHT_RATIO = 0.8;
 
@@ -45,6 +45,14 @@ export function parseBudget(x: unknown): Budget | null {
     upcomingBills: b.upcomingBills,
     categories: categories as Budget["categories"],
   };
+}
+
+/** The last-discussed purchase the phone sends along ("go for it" refers to it). Null if it isn't sane. */
+export function parseLastItem(x: unknown): LastItem | null {
+  const l = x as LastItem | null;
+  if (!l || typeof l !== "object" || typeof l.item !== "string" || !l.item.trim()) return null;
+  if (!num(l.amount) || l.amount <= 0 || !(CATEGORY_IDS as readonly string[]).includes(l.category)) return null;
+  return { item: l.item.trim().slice(0, 40), amount: l.amount, category: l.category, priceEstimated: l.priceEstimated === true };
 }
 
 export function summarize(b: Budget): string {

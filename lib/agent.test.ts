@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkAffordability } from "./agent.ts";
+import { checkAffordability, recordPurchase } from "./agent.ts";
 import { demoBudget } from "../data/budget.ts";
 
 test("jacket is a no", () =>
@@ -15,3 +15,13 @@ test("price is not estimated by default", () =>
   assert.equal(checkAffordability(demoBudget, { item: "coffee", amount: 6, category: "food" }).answer?.priceEstimated, false));
 test("missing amount asks for it", () =>
   assert.equal(checkAffordability(demoBudget, { item: "hat" }).answer, null));
+test("checking is never a purchase", () =>
+  assert.equal(checkAffordability(demoBudget, { item: "coffee", amount: 6, category: "food" }).answer?.purchased, false));
+test("record_purchase logs it with the code's numbers", () => {
+  const r = recordPurchase(demoBudget, { item: "jacket", amount: 80, category: "shopping" });
+  assert.equal(r.answer?.purchased, true);
+  assert.equal(r.answer?.verdict, "tight");
+  assert.deepEqual(JSON.parse(r.text), { logged: true, verdict: "tight", item: "jacket", amount: 80, category: "shopping", category_left_after: 10, safe_to_spend_after: 1370 });
+});
+test("record_purchase without a price logs nothing", () =>
+  assert.equal(recordPurchase(demoBudget, { item: "jacket" }).answer, null));

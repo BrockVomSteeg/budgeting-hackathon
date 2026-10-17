@@ -12,11 +12,11 @@ import { TAB_LABEL, TABS, type Tab } from "@/components/tabs/types";
 import { Icon } from "@/components/ui";
 import { useLedger } from "@/components/useLedger";
 import { demoLedger } from "@/data/budget";
-import { addTxn, deleteTxn, markAllReviewed, setLimit, toBudget, togglePaid, updateTxn } from "@/lib/ledger";
+import { addTxn, deleteTxn, logPurchase, markAllReviewed, nextLastItem, setLimit, toBudget, togglePaid, updateTxn } from "@/lib/ledger";
 import { dbg, onDebug } from "@/lib/debug";
 import { GORDON } from "@/lib/personas";
 import { recorderSupported, startRecording, transcribe } from "@/lib/record";
-import type { AskResponse, CategoryId } from "@/lib/types";
+import type { AskResponse, CategoryId, LastItem } from "@/lib/types";
 import { LIMITS } from "@/lib/types";
 import { listen, playFiller, preloadFillers, primeAudio, setSpeakerMode, speak, startAnswer, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
 
@@ -50,6 +50,7 @@ function App() {
   // What Gordon has said of the answer being streamed, shown until the full answer arrives.
   const [live, setLive] = useState("");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [last, setLast] = useState<LastItem | null>(null); // what "ok, go for it" refers to
   const [open, setOpen] = useState<Open>(null);
   const [compact, setCompact] = useState(false);
   const [speaker, setSpeaker] = useState(() => localStorage.getItem("ciai-speaker") !== "off");
@@ -123,7 +124,7 @@ function App() {
       const r = await fetch("/api/ask?stream=1", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, persona: GORDON.id, history: prior, budget: toBudget(ledger) }),
+        body: JSON.stringify({ text, persona: GORDON.id, history: prior, budget: toBudget(ledger), last }),
         signal: AbortSignal.timeout(30_000),
       });
       dbg(`ask: HTTP ${r.status}`);
@@ -152,6 +153,8 @@ function App() {
       if (!a) throw new Error("Something broke.");
       const done = a;
       setAnswer(done);
+      setLedger((l) => logPurchase(l, done)); // "go for it": the purchase lands in the budget, and in every later answer
+      setLast((prev) => nextLastItem(prev, done));
       setHeard("");
       setMessages((m) => [...m, { role: "assistant", text: done.line, verdict: done.verdict }]);
       setStatus("speaking");
@@ -256,8 +259,9 @@ function App() {
         {showBubble && (
           <button className={`bubble ${error ? "err" : ""} ${status === "thinking" ? "typing" : ""}`} onClick={() => setOpen({ kind: "chat" })} aria-live="polite">
             {answer && status === "idle" && !error && answer.verdict !== "info" && (
-              <span className={`verdict v-${answer.verdict}`}>{{ yes: "YES", no: "NOPE", tight: "TIGHT" }[answer.verdict]}
-                {answer.priceEstimated && answer.amount !== null && ` · $${answer.amount.toLocaleString("en-US")} (est.)`}
+              <span className={`verdict v-${answer.verdict}`}>{answer.purchased ? "LOGGED" : { yes: "YES", no: "NOPE", tight: "TIGHT" }[answer.verdict]}
+                {(answer.purchased || answer.priceEstimated) && answer.amount !== null &&
+                  ` · $${answer.amount.toLocaleString("en-US")}${answer.priceEstimated ? " (est.)" : ""}`}
               </span>
             )}
             <span className="bubble-text">{status === "listening" && heard ? `“${bubble}”` : bubble}</span>
@@ -338,6 +342,7 @@ function App() {
             setLedger(demoLedger);
             setMessages([]);
             setAnswer(null);
+            setLast(null);
             close();
           }}
           onClose={close}

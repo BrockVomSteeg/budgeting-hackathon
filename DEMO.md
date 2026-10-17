@@ -14,6 +14,7 @@
 - "Can I afford a $400 jacket?" → ❌ big roast 🔥
 - "Can I afford a Chipotle burrito?" → guesses about $12 → ✅
 - "Can I afford a flight to Tokyo?" / "a dozen eggs?" → price guess + verdict
+- After any verdict: "OK, I'm gonna go for it" → Gordon logs it with a snarky line; it shows up in Transactions and Categories, and the next answer uses the new balance. "Purchase AirPods Pro" logs a named item (price guessed if you don't give one)
 - Off-topic ("How am I doing this month?", "tell me a joke") → Gordon won't answer; he says he only does "can you afford it?" and asks what you're buying
 
 ⚠️ Gordon swears, even on a "yes". Warn the hosts.

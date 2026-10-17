@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
-import { demoBudget } from "@/data/budget";
-import { agentVariables, checkAffordability } from "@/lib/agent";
+import { agentVariables, checkAffordability, recordPurchase } from "@/lib/agent";
 import { personas } from "@/lib/personas";
-import type { AskResponse, PersonaId } from "@/lib/types";
+import type { AskResponse, Budget, PersonaId } from "@/lib/types";
 
 interface Props {
   persona: PersonaId;
+  /** The user's current budget (toBudget(ledger)); purchases logged mid-call show up in the next tool call. */
+  budget: Budget;
+  /** Every tool result. purchased: true means log it (addTxn), like an /api/ask answer. */
   onVerdict: (a: AskResponse) => void;
   onUnavailable: () => void;
 }
@@ -21,7 +23,12 @@ export function LiveCall(props: Props) {
   );
 }
 
-function Call({ persona, onVerdict, onUnavailable }: Props) {
+function Call({ persona, budget, onVerdict, onUnavailable }: Props) {
+  // Tools read the latest budget, not the one from when the call started.
+  const budgetRef = useRef(budget);
+  useEffect(() => {
+    budgetRef.current = budget;
+  }, [budget]);
   const [lines, setLines] = useState<{ who: "you" | "agent"; text: string }[]>([]);
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
@@ -29,7 +36,12 @@ function Call({ persona, onVerdict, onUnavailable }: Props) {
   const conv = useConversation({
     clientTools: {
       check_affordability: (params) => {
-        const r = checkAffordability(demoBudget, params);
+        const r = checkAffordability(budgetRef.current, params);
+        if (r.answer) onVerdict(r.answer);
+        return r.text;
+      },
+      record_purchase: (params) => {
+        const r = recordPurchase(budgetRef.current, params);
         if (r.answer) onVerdict(r.answer);
         return r.text;
       },
@@ -56,7 +68,7 @@ function Call({ persona, onVerdict, onUnavailable }: Props) {
       conv.startSession({
         conversationToken: token,
         connectionType: "webrtc",
-        dynamicVariables: agentVariables(demoBudget, p),
+        dynamicVariables: agentVariables(budgetRef.current, p),
         ...(voiceOverride ? { overrides: { tts: { voiceId: p.voiceId } } } : {}),
       });
     } catch {

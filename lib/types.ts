@@ -44,11 +44,20 @@ export interface Turn {
 
 export type Verdict = "yes" | "no" | "tight" | "info";
 
+/** The purchase Gordon last gave a verdict on, so "ok, go for it" knows what to log. */
+export interface LastItem {
+  item: string;
+  amount: number;
+  category: CategoryId;
+  priceEstimated: boolean;
+}
+
 export interface AskRequest {
   text: string;
   persona: PersonaId;
   history: Turn[];
   budget?: Budget; // the user's edited budget; the server falls back to the demo budget
+  last?: LastItem | null; // the most recently discussed purchase, if any
 }
 
 export interface AskResponse {
@@ -58,6 +67,8 @@ export interface AskResponse {
   priceEstimated: boolean;
   category: CategoryId | null;
   remainingAfter: number | null;
+  /** True when the user said they're buying it: the app logs item/amount/category as a transaction. */
+  purchased: boolean;
   line: string;
   source: "claude" | "mock";
   /** HMAC from /api/ask; /api/speak only voices signed lines. */

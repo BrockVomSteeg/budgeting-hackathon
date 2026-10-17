@@ -33,7 +33,9 @@ interface Turn { role: "user" | "assistant"; text: string }
 // req
 {
   text: string /* ≤300 */, persona: PersonaId, history: Turn[] /* ≤6 */,
-  budget?: Budget          // the phone's edited ledger; bad/missing → server uses data/budget.ts demo budget
+  budget?: Budget,         // the phone's edited ledger; bad/missing → server uses data/budget.ts demo budget
+  last?: { item: string, amount: number, category: CategoryId, priceEstimated: boolean } | null
+                                 // the last purchase Gordon gave a verdict on: what "ok, go for it" refers to
 }
 // res 200
 {
@@ -43,7 +45,9 @@ interface Turn { role: "user" | "assistant"; text: string }
   priceEstimated: boolean,       // true when the user gave no price and Claude estimated it (card shows "(est.)")
   category: CategoryId | null,
   remainingAfter: number | null, // category left after purchase
-  line: string,                  // what gets spoken (~40 words max)
+  purchased: boolean,            // user said they're buying it ("go for it", "purchase X"): the app adds item/amount/category
+                                 // as a transaction, so the UI and every later answer see the new balance
+  line: string,                  // what gets spoken (~25 words max)
   source: "claude" | "mock",
   sig: string                    // HMAC of persona+line, required by /api/speak
 }
@@ -89,6 +93,13 @@ interface Turn { role: "user" | "assistant"; text: string }
 ```ts
 // in:  { item: string, amount: number, category: CategoryId, price_estimated?: boolean }
 // out: JSON string { verdict, item, amount, category, category_left, left_after, safe_to_spend_overall }
+```
+
+## Client tool `record_purchase` (ElevenLabs agent → browser) 🧾
+```ts
+// in:  same as check_affordability; called once when the user decides to buy
+// out: JSON string { logged: true, verdict, item, amount, category, category_left_after, safe_to_spend_after }
+// The browser logs it in the ledger (purchased: true), so later tool calls use the new budget.
 ```
 
 ## 🔑 Env (server only)

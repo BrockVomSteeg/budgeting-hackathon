@@ -1,4 +1,4 @@
-import type { Budget, CategoryId } from "./types";
+import type { AskResponse, Budget, CategoryId, LastItem } from "./types";
 
 // The app's editable money data. The Budget that Gordon reasons about is derived from it,
 // so spent, upcoming bills and checking can never disagree with the transaction list.
@@ -71,6 +71,20 @@ const newId = () => `u${Date.now().toString(36)}${Math.random().toString(36).sli
 export function addTxn(l: Ledger, t: { merchant: string; amount: number; category: CategoryId }): Ledger {
   const txn: Txn = { id: newId(), day: today(l), reviewed: true, ...t, amount: round2(t.amount) };
   return { ...l, checking: round2(l.checking - txn.amount), transactions: [...l.transactions, txn] };
+}
+
+/** Gordon said "logged": add the purchase as a transaction (checking goes down, the category fills up). */
+export function logPurchase(l: Ledger, a: AskResponse): Ledger {
+  if (!a.purchased || !a.item || a.amount === null || a.amount <= 0 || !a.category) return l;
+  const merchant = a.item.charAt(0).toUpperCase() + a.item.slice(1);
+  return addTxn(l, { merchant, amount: a.amount, category: a.category });
+}
+
+/** What "ok, go for it" will refer to after this answer: the priced item, or null once it's bought. */
+export function nextLastItem(prev: LastItem | null, a: AskResponse): LastItem | null {
+  if (a.purchased) return null;
+  if (a.verdict === "info" || !a.item || a.amount === null || !a.category) return prev;
+  return { item: a.item, amount: a.amount, category: a.category, priceEstimated: a.priceEstimated };
 }
 
 export function deleteTxn(l: Ledger, id: string): Ledger {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decide, parseBudget, safeToSpend } from "./budget.ts";
+import { decide, parseBudget, parseLastItem, safeToSpend } from "./budget.ts";
 import type { Budget } from "./types.ts";
 
 const b: Budget = {
@@ -24,4 +24,12 @@ test("parseBudget rejects junk", () => {
   assert.equal(parseBudget({ ...b, checking: "lots" }), null);
   assert.equal(parseBudget({ ...b, categories: [{ id: "crypto", label: "x", limit: 1, spent: 0 }] }), null);
   assert.equal(parseBudget(null), null);
+});
+
+test("parseLastItem keeps a sane last item and rejects junk", () => {
+  assert.deepEqual(parseLastItem({ item: " PS5 ", amount: 500, category: "fun", priceEstimated: true }), { item: "PS5", amount: 500, category: "fun", priceEstimated: true });
+  assert.equal(parseLastItem({ item: "PS5", amount: -5, category: "fun" }), null);
+  assert.equal(parseLastItem({ item: "PS5", amount: 500, category: "crypto" }), null);
+  assert.equal(parseLastItem({ item: "", amount: 500, category: "fun" }), null);
+  assert.equal(parseLastItem(undefined), null);
 });
