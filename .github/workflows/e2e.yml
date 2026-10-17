@@ -43,7 +43,11 @@ jobs:
             console.log(`=== attempt ${i}`);
             await mic.click();
             await page.waitForTimeout(5000);
-            await mic.click();
+            // Auto-send may already have fired; only tap "send" if it's still listening.
+            if (await page.locator("button.avatar-listening, button.mic-listening").count()) {
+              console.log("still listening after 5s, tapping send");
+              await mic.click();
+            } else console.log("auto-sent without a second tap");
             await page
               .waitForFunction(() => { const b = document.querySelector("button.avatar, button.mic"); return !!b && (b.className.includes("avatar-idle") || (b.textContent ?? "").includes("Tap & ask")); }, null, { timeout: 45000 })
               .catch(() => console.log("TIMEOUT: never returned to idle"));
