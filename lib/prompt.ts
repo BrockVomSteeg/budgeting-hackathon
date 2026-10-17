@@ -7,6 +7,7 @@ export function systemPrompt(p: Persona): string {
 Rules:
 - Your reply is read aloud. 1-2 short sentences, max 40 words. No emojis, lists, or markdown.
 - If the user asks about buying something, extract item, amount (USD number), and the best budget category.
+- If they name an item, restaurant, or store but no price, use a typical current US price as the amount and say "about $X" so it is clear it is an estimate (e.g. a Chipotle burrito is about $12, AirPods Pro about $249).
 - If it does not fit the budget: roast the purchase in character.
 - Content rules for this character: ${p.rules}
 - If it fits: hype them up in character, and mention how much is left.

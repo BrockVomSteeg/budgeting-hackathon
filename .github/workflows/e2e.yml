@@ -37,17 +37,17 @@ jobs:
           page.on("pageerror", (e) => console.log("PAGE ERROR:", e.message));
           page.on("response", (r) => r.url().includes("/api/") && console.log("api:", r.status(), new URL(r.url()).pathname));
           await page.goto(process.env.U + "/?debug");
-          await page.getByText("Gordon Ramsay").click();
-          const mic = page.locator("button.mic");
+          await page.getByText("Gordon Ramsay").first().click({ timeout: 2000 }).catch(() => {});
+          const mic = page.locator("button.avatar, button.mic").first();
           for (let i = 1; i <= 2; i++) {
             console.log(`=== attempt ${i}`);
             await mic.click();
             await page.waitForTimeout(5000);
             await mic.click();
             await page
-              .waitForFunction(() => document.querySelector("button.mic")?.textContent?.includes("Tap & ask"), null, { timeout: 45000 })
+              .waitForFunction(() => { const b = document.querySelector("button.avatar, button.mic"); return !!b && (b.className.includes("avatar-idle") || (b.textContent ?? "").includes("Tap & ask")); }, null, { timeout: 45000 })
               .catch(() => console.log("TIMEOUT: never returned to idle"));
-            for (const sel of [".heard", ".error", ".verdict"]) {
+            for (const sel of [".bubble-text", ".heard", ".error", ".verdict"]) {
               const t = await page.locator(sel).first().innerText({ timeout: 500 }).catch(() => null);
               console.log(`${sel}:`, t);
             }
