@@ -18,6 +18,20 @@ npm run check   # lint + typecheck + tests + build
 ```
 
 ## How it works
+
+### User Input Flow
+Users can provide their query in two ways:
+
+1. **Description with Amount**: "A new PlayStation 5 that costs $500"
+   - The app extracts the amount and checks it against your budget
+
+2. **Item Name Only**: "A new laptop"
+   - The app searches the internet via OpenAI API to estimate the cost
+   - Then checks the estimated cost against your budget
+
+The app maintains demo budget buckets (no database needed) that track spending across categories. Based on the budget check, it returns a funny response with buying advice and context about how much over/under budget you'd be.
+
+### Technical Flow
 `mic (Web Speech API)` → `POST /api/ask` → Claude (structured JSON) → **code re-checks the math** (`lib/budget.ts`) → `POST /api/speak` → ElevenLabs → audio. With no keys, both routes fall back to mock mode and the browser voice.
 
 ## 🔐 Security
