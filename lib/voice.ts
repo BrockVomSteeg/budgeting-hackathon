@@ -61,28 +61,40 @@ export function listen(onText: (t: string) => void, onDone: (t: string) => void,
   return () => rec.stop();
 }
 
-let ctx: AudioContext | null = null;
+// One <audio> element, started inside a tap so iOS lets us play it again later without a gesture.
+let player: HTMLAudioElement | null = null;
+const SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
 /** Call inside a tap handler so iOS lets us play audio later. */
 export function unlockAudio() {
-  ctx ??= new AudioContext();
-  ctx.resume().catch(() => {});
+  player ??= new Audio();
+  player.src = SILENCE;
+  player.play().catch(() => {});
   // Play through the iOS silent switch (Safari 17+).
   const nav = navigator as Navigator & { audioSession?: { type: string } };
   if (nav.audioSession) nav.audioSession.type = "playback";
   if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 }
 
-async function playMp3(buf: ArrayBuffer): Promise<void> {
-  ctx ??= new AudioContext();
-  await ctx.resume();
-  const audioBuf = await ctx.decodeAudioData(buf);
-  const src = ctx.createBufferSource();
-  src.buffer = audioBuf;
-  src.connect(ctx.destination);
-  await new Promise<void>((res) => {
-    src.onended = () => res();
-    src.start();
+/** Streams audio from url. Resolves true if anything played, false if it never started (204, error). */
+function playStream(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const a = (player ??= new Audio());
+    let started = false;
+    const done = (ok: boolean) => {
+      a.onplaying = a.onended = a.onerror = null;
+      clearTimeout(timer);
+      resolve(ok);
+    };
+    const timer = setTimeout(() => {
+      a.pause();
+      done(started);
+    }, 25_000);
+    a.onplaying = () => (started = true);
+    a.onended = () => done(true);
+    a.onerror = () => done(started);
+    a.src = url;
+    a.play().catch(() => done(started));
   });
 }
 
@@ -102,21 +114,10 @@ function browserSpeak(text: string, p: Persona): Promise<void> {
   });
 }
 
-/** ElevenLabs via our server; falls back to the browser voice. */
+/** Fish Audio or ElevenLabs streamed via our server; falls back to the browser voice. */
 export async function speak(text: string, p: Persona): Promise<void> {
-  try {
-    const r = await fetch("/api/speak", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text, persona: p.id }),
-    });
-    if (r.status === 200) {
-      await withTimeout(playMp3(await r.arrayBuffer()));
-      return;
-    }
-  } catch {
-    // fall through to the browser voice
-  }
+  const url = `/api/speak?${new URLSearchParams({ text, persona: p.id })}`;
+  if (await playStream(url)) return;
   await withTimeout(browserSpeak(text, p));
 }
 

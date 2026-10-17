@@ -19,7 +19,7 @@ Files: `app/page.tsx` · `components/*` · `lib/voice.ts` (live call UI is `comp
 ## 🧩 Mid dev #2: personality + data
 Files: `lib/personas.ts` · `lib/prompt.ts` · `data/budget.ts` · `lib/mock.ts`
 - [ ] Pick 4 ElevenLabs premade voices that match the personas
-- [ ] Tune the prompt: funny, PG-13, ≤2 sentences, cites real numbers
+- [ ] Tune the prompt: funny, PG-13 (Gordon is R18+), ≤2 sentences, cites real numbers
 - [ ] Demo budget tuned so the DEMO.md lines hit yes / no / no
 
 ## 🌱 Beginner: stage + submission

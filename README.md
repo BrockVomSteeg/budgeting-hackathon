@@ -24,7 +24,7 @@ Ask with an amount: *"Can I afford a $400 jacket?"* or *"a four hundred dollar j
 The app checks it against demo budget buckets in `data/budget.json` (no database) and replies yes, tight, or no. A no gets a fresh roast in the character's voice. No amount? It asks how much.
 
 ### Technical Flow
-`mic (Web Speech API)` → `POST /api/ask` → Claude Haiku (structured JSON) → **code re-checks the math** (`lib/budget.ts`) → `POST /api/speak` → Fish Audio (then ElevenLabs, then browser voice) → audio. No keys = mock roasts + browser voice. Optional: ElevenLabs live call (`AGENT_SETUP.md`). Check config at `/api/health`.
+`mic (Web Speech API)` → `POST /api/ask` → Claude Haiku (structured JSON) → **code re-checks the math** (`lib/budget.ts`) → `GET /api/speak` (streamed) → Fish Audio (then ElevenLabs, then browser voice) → audio. No keys = mock roasts + browser voice. Optional: ElevenLabs live call (`AGENT_SETUP.md`); Gordon stays in tap mode because the live agent can only use ElevenLabs voices. Check config at `/api/health`.
 
 ## 🔐 Security
 - Keys only in Vercel env vars or `.env.local` (gitignored). Never `NEXT_PUBLIC_*`.

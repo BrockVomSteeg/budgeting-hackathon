@@ -25,7 +25,9 @@ export interface Persona {
   name: string;
   emoji: string;
   vibe: string;
+  rules: string;
   voiceId: string;
+  fishVoiceId?: string;
   browserVoice: { pitch: number; rate: number };
 }
 

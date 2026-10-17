@@ -75,6 +75,9 @@ export default function Home() {
     ask(t);
   }
 
+  // The live ElevenLabs agent can only speak ElevenLabs voices, so Fish personas run in tap mode.
+  const tapOnly = Boolean(personas[persona].fishVoiceId);
+  const view = tapOnly ? "tap" : mode;
   const micLabel = { idle: "Tap & ask", listening: "Listening… tap to send", thinking: "Thinking…", speaking: "Talking…" }[status];
 
   return (
@@ -86,7 +89,7 @@ export default function Home() {
 
       <PersonaPicker value={persona} onChange={setPersona} />
 
-      {mode === "live" ? (
+      {view === "live" ? (
         <LiveCall
           persona={persona}
           onVerdict={setAnswer}
@@ -122,11 +125,15 @@ export default function Home() {
         <button type="submit" disabled={!typed.trim() || status !== "idle"}>Ask</button>
       </form>
 
-      <button className="mode-switch" onClick={() => setMode(mode === "live" ? "tap" : "live")}>
-        {mode === "live" ? "Back to tap-to-ask" : "Try live call (beta)"}
-      </button>
+      {tapOnly ? (
+        <p className="source">🎙️ {personas[persona].name} talks in tap-to-ask mode</p>
+      ) : (
+        <button className="mode-switch" onClick={() => setMode(mode === "live" ? "tap" : "live")}>
+          {mode === "live" ? "Back to tap-to-ask" : "Try live call (beta)"}
+        </button>
+      )}
 
-      {answer && mode === "tap" && <p className="source">{answer.source === "claude" ? "⚡ live AI" : "🧪 mock mode"}</p>}
+      {answer && view === "tap" && <p className="source">{answer.source === "claude" ? "⚡ live AI" : "🧪 mock mode"}</p>}
     </main>
   );
 }

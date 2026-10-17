@@ -17,7 +17,9 @@ interface Budget {
 interface Persona {
   id: PersonaId; name: string; emoji: string;
   vibe: string;            // style instructions for Claude
+  rules: string;           // content rating (PG-13, or R18+ for Gordon), injected into both prompts
   voiceId: string;         // ElevenLabs premade voice id
+  fishVoiceId?: string;    // Fish Audio voice; /api/speak prefers it, persona is tap-mode only
   browserVoice: { pitch: number; rate: number }; // fallback TTS
 }
 
@@ -41,11 +43,10 @@ interface Turn { role: "user" | "assistant"; text: string }
 // 400 bad input · 429 rate limited · never 500s to the client (falls back to mock)
 ```
 
-## `POST /api/speak` 🔊
+## `GET /api/speak` 🔊
 ```ts
-// req
-{ text: string /* ≤400 */, persona: PersonaId }
-// res 200 audio/mpeg bytes  → play it
+// req: query string ?text=…(≤400)&persona=PersonaId  (GET so an <audio> element streams it)
+// res 200 audio/mpeg stream → plays as bytes arrive
 // res 204 (no key / error)   → client uses speechSynthesis with persona.browserVoice
 ```
 
@@ -62,4 +63,4 @@ interface Turn { role: "user" | "assistant"; text: string }
 ```
 
 ## 🔑 Env (server only)
-`ANTHROPIC_API_KEY` · `ELEVENLABS_API_KEY` · `ELEVENLABS_AGENT_ID` · `ELEVENLABS_VOICE_OVERRIDE` · optional `ANTHROPIC_MODEL`
+`ANTHROPIC_API_KEY` · `ELEVENLABS_API_KEY` · `FISH_API_KEY` · `ELEVENLABS_AGENT_ID` · `ELEVENLABS_VOICE_OVERRIDE` · optional `ANTHROPIC_MODEL`

@@ -5,7 +5,7 @@ import { guessCategory } from "./mock.ts";
 
 /** Values injected into the ElevenLabs agent prompt ({{persona_name}} etc). */
 export function agentVariables(b: Budget, p: Persona): Record<string, string> {
-  return { persona_name: p.name, persona_vibe: p.vibe, budget_summary: summarize(b) };
+  return { persona_name: p.name, persona_vibe: p.vibe, persona_rules: p.rules, budget_summary: summarize(b) };
 }
 
 const isCategory = (x: unknown): x is CategoryId =>

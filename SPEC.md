@@ -15,15 +15,15 @@ You ask *"Can I afford a $400 jacket?"* → it does the math → **"No."** → t
 2b. 🛟 Backup: tap-to-ask (Web Speech API + `/api/ask` Claude + text box)
 3. 🧠 `/api/ask` → Claude reads the question + budget → verdict + a dynamic roast in the persona's voice
 4. 🧮 Code double-checks the math (Claude extracts the amount and category, code decides yes/no)
-5. 🔊 `/api/speak` → ElevenLabs TTS per persona (falls back to the browser voice)
-6. 🎭 4 original personas: 🎖️ Drill Sergeant, 👵 Disappointed Grandma, 🍳 Angry Chef, 💅 Rich Bestie
+5. 🔊 `/api/speak` → ElevenLabs TTS per persona, Fish Audio for Gordon (falls back to ElevenLabs, then the browser voice)
+6. 🎭 4 personas: 🎖️ Drill Sergeant, 👵 Disappointed Grandma, 🍳 Gordon Ramsay (R18+, see [PERSONA_GORDON.md](PERSONA_GORDON.md)), 💅 Rich Bestie
 7. 💬 Short memory (last 6 turns) so follow-ups work ("ok what about $150?")
 8. 🧪 Mock mode: no keys → canned logic + browser voice, still demoable
 9. 🔐 Keys only on the server (Vercel env vars), never `NEXT_PUBLIC_`, never committed
 
 ## ❌ Cut
 - 🏦 Real bank links / Plaid · 🔑 auth · 🗄️ DB (Supabase) · 🔌 Composio
-- 🎬 Real celebrity voices (ElevenLabs ToS + right-of-publicity risk)
+- 🎬 Celebrity voice clones on ElevenLabs (ToS). Exception: Gordon uses a Fish Audio Gordon Ramsay voice in tap mode (team accepted the right-of-publicity risk).
 - 📊 Charts, history, multiple users, settings pages
 
 ## 🔐 Key safety (no Infisical needed)
@@ -39,5 +39,5 @@ You ask *"Can I afford a $400 jacket?"* → it does the math → **"No."** → t
 | Venue Wi-Fi | Phone hotspot |
 | Loud beach / weak phone speaker | Hold-to-talk close to mouth; Bluetooth speaker or the host's mic |
 | Latency (Claude + TTS) | Haiku-class model, short replies, ElevenLabs Flash model |
-| Roast crosses a line | Prompt: PG-13, roast the *purchase*, never identity |
+| Roast crosses a line | Per-persona `rules`: PG-13 by default, R18+ for Gordon. Always roast the *purchase*, never identity |
 | Live demo breaks | Screen-record a working run before 4:30 PM as backup |
