@@ -6,9 +6,12 @@ export function safeToSpend(b: Budget): number {
   return b.checking - b.upcomingBills;
 }
 
+// Rounded to cents: these numbers are read aloud and put in prompts (600 - 437.85 must not be 162.14999999999998).
+const cents = (n: number) => Math.round(n * 100) / 100;
+
 export function categoryLeft(b: Budget, id: CategoryId): number {
   const c = b.categories.find((x) => x.id === id);
-  return c ? c.limit - c.spent : 0;
+  return c ? cents(c.limit - c.spent) : 0;
 }
 
 /** Deterministic affordability check. Code, not the model, owns the math. */
@@ -18,7 +21,7 @@ export function decide(
   category: CategoryId,
 ): { verdict: Exclude<Verdict, "info">; remainingAfter: number } {
   const left = categoryLeft(b, category);
-  const remainingAfter = left - amount;
+  const remainingAfter = cents(left - amount);
   if (amount > safeToSpend(b) || amount > left) return { verdict: "no", remainingAfter };
   if (amount > left * TIGHT_RATIO) return { verdict: "tight", remainingAfter };
   return { verdict: "yes", remainingAfter };

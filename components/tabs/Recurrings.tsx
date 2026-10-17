@@ -33,7 +33,7 @@ export function Recurrings({ ledger, onToggle }: { ledger: Ledger; onToggle: (id
             <span className="rec-emoji">{r.emoji}</span>
             <span className="row-main">
               {r.name}
-              <small>{r.day - t <= 0 ? "Due today" : `In ${r.day - t} days · ${shortDate(r.day)}`}</small>
+              <small>{r.day < t ? `Overdue · ${shortDate(r.day)}` : r.day === t ? "Due today" : `In ${r.day - t} days · ${shortDate(r.day)}`}</small>
             </span>
             <Money value={r.amount} cents />
             <button className="pill-btn" onClick={() => onToggle(r.id)}>

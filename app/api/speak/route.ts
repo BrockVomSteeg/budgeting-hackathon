@@ -68,7 +68,7 @@ export async function GET(req: Request) {
   try {
     const voice = fishVoice(persona);
     const r =
-      (fishKey && voice ? await fishTts(fishKey, text, voice) : null) ??
+      (fishKey && voice ? await fishTts(fishKey, text, voice).catch(() => null) : null) ?? // Fish timeout -> ElevenLabs
       (elevenKey ? await elevenTts(elevenKey, text, personas[persona].voiceId) : null);
     if (!r?.body) return noAudio();
     return new Response(r.body, {

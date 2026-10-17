@@ -1,7 +1,7 @@
 // Runs before any model or mock call. Real distress gets a calm, fixed reply, never a roast.
 const SELF_HARM = /\b(kill(ing)? myself|suicid\w*|end it all|want to die|hurt(ing)? myself|self[- ]?harm)\b/i;
 const MONEY_CRISIS =
-  /\b(can'?t|cannot|couldn'?t) (afford|pay)( to pay)?( for)? (my )?(rent|food|groceries|bills)|\b(evict\w*|homeless|going hungry|no money for (food|rent))\b/i;
+  /\b(can['’]?t|cannot|can not|couldn['’]?t) (afford|pay)( to pay)?( for)? (my )?(rent|food|groceries|bills)|\b(evict\w*|homeless|going hungry|no money for (food|rent))\b/i;
 
 export function distressReply(text: string): string | null {
   if (SELF_HARM.test(text)) {

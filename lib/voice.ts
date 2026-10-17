@@ -470,18 +470,17 @@ export function startAnswer(p: Persona) {
         await chain;
         // Never hang on a clip whose onended won't fire (iOS can suspend the context mid-answer).
         if (!cancelled) {
+          let iv: ReturnType<typeof setInterval> | undefined;
           await Promise.race([
             lastClip,
             new Promise<void>((resolve) => {
               const t0 = Date.now();
-              const iv = setInterval(() => {
-                if (cancelled || !ctx || ctx.state !== "running" || Date.now() - t0 > 30_000) {
-                  clearInterval(iv);
-                  resolve();
-                }
+              iv = setInterval(() => {
+                if (cancelled || !ctx || ctx.state !== "running" || Date.now() - t0 > 30_000) resolve();
               }, 250);
             }),
           ]);
+          clearInterval(iv); // also when the clip ended first
         }
         for (const c of chunks) if (!c.played && !cancelled) await speak(c.text, p, c.sig);
       } finally {

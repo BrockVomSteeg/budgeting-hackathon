@@ -87,7 +87,7 @@ export function Dashboard({ ledger, go, onReviewAll, onOpenTxn }: Props) {
         {next.length === 0 && <div className="card mini muted">No bills left this month 🎉</div>}
         {next.map((r) => (
           <div key={r.id} className="mini-wrap">
-            <div className="mini-when">{r.day - t <= 0 ? "today" : `in ${r.day - t} days`}</div>
+            <div className="mini-when">{r.day < t ? "overdue" : r.day === t ? "today" : `in ${r.day - t} days`}</div>
             <button className="card mini" onClick={() => go("recurrings")}>
               <span>{r.emoji}</span> <span className="mini-name">{r.name}</span> <Money value={r.amount} cents />
             </button>

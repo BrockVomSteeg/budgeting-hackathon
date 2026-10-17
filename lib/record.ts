@@ -9,7 +9,7 @@ export const recorderSupported = () =>
   typeof window !== "undefined" && "MediaRecorder" in window && !!navigator.mediaDevices?.getUserMedia;
 
 /**
- * Calls onDone ~0.8s after the speaker stops talking (or after 6s of nothing), so nobody has to tap
+ * Calls onDone ~1.2s after the speaker stops talking (or after 6s of nothing), so nobody has to tap
  * "send". Uses the tap-unlocked audio context; if there isn't one running, it does nothing and the
  * tap / time cap still work. Returns a cleanup function.
  */
@@ -67,7 +67,13 @@ export async function startRecording(onCap: () => void, maxMs = 10_000): Promise
     t.onended = () => dbg("recorder: mic track ended");
   }
   const mime = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find((t) => MediaRecorder.isTypeSupported(t));
-  const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  let rec: MediaRecorder;
+  try {
+    rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  } catch (err) {
+    stream.getTracks().forEach((t) => t.stop()); // don't leave the mic on
+    throw err;
+  }
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => {
     dbg(`recorder: chunk ${e.data.size} bytes`);

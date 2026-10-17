@@ -79,7 +79,8 @@ export async function askClaude(
   const priceEstimated = fromLast ? fromLast.priceEstimated : out.priceEstimated;
 
   // No amount (not even an estimate) means no math, so the model doesn't get to issue a yes/no verdict (or log anything).
-  if (amount === null || amount <= 0) {
+  // A question answered "info" (the prompt's distress rule, or asking for the price) is kept too: never force a roast on it.
+  if (amount === null || amount <= 0 || (out.verdict === "info" && !purchased)) {
     return { ...strip(out), verdict: "info", amount: null, priceEstimated: false, remainingAfter: null, purchased: false, source: "claude" };
   }
 
@@ -124,12 +125,8 @@ export async function askClaudeStreaming(
       const amount = typeof f.amount === "number" ? f.amount : null;
       // A logged purchase may take its numbers from the last item, so its line waits for the final answer.
       if (f.topic === "purchase") checked = "no";
-      else if (f.topic === "off_topic" || amount === null || amount <= 0) checked = "ok"; // no math to check
-      else {
-        const known = (CATEGORY_IDS as readonly string[]).includes(f.category as string);
-        const category = known ? (f.category as (typeof CATEGORY_IDS)[number]) : guessCategory(text);
-        checked = decide(b, amount, category).verdict === f.verdict ? "ok" : "no";
-      }
+      else if (f.topic === "off_topic" || amount === null || amount <= 0 || f.verdict === "info") checked = "ok"; // no math to check
+      else checked = check(b, text, amount, f.category).truth.verdict === f.verdict ? "ok" : "no";
     }
     if (checked !== "ok" || spoken.length) return;
     // trimStart: the final line is trimmed, and what he said must be its prefix.

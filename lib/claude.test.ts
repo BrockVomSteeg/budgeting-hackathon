@@ -124,3 +124,11 @@ test("'go for it' with nothing discussed logs nothing", async () => {
   assert.equal(a.verdict, "info");
   assert.equal(a.amount, null);
 });
+test("an info verdict with a price (distress) is never overridden into a roast", async () => {
+  const calm: Out = { ...ps5, item: "groceries", category: "food", amount: 900, verdict: "info", line: "Hey. Breathe. Rent and food come first." };
+  const f = fake(calm);
+  const a = await ask("I'm panicking about money, can I afford $900 groceries?", f.call);
+  assert.equal(f.notes.length, 1);
+  assert.equal(a.verdict, "info");
+  assert.equal(a.line, calm.line);
+});
