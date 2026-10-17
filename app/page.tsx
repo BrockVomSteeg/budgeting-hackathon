@@ -11,7 +11,7 @@ import type { AskResponse, PersonaId, Turn } from "@/lib/types";
 import { LIMITS } from "@/lib/types";
 import { dbg, onDebug } from "@/lib/debug";
 import { recorderSupported, startRecording, transcribe } from "@/lib/record";
-import { listen, speak, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
+import { listen, primeAudio, speak, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
 
@@ -84,7 +84,10 @@ export default function Home() {
   function onMic() {
     dbg(`tap: status=${status}`);
     unlockAudio();
-    if (status === "listening") return stop.current();
+    if (status === "listening") {
+      primeAudio(); // this tap is the gesture that lets the answer play out loud
+      return stop.current();
+    }
     if (status === "speaking") return stopSpeaking();
     if (status !== "idle") return;
     setHeard("");
@@ -128,7 +131,12 @@ export default function Home() {
       finish = await startRecording(() => void send());
     } catch (e) {
       dbg(`recorder: mic failed ${e instanceof Error ? `${e.name} ${e.message}` : e}`);
-      setError("Mic blocked. Allow microphone access, or type below.");
+      const denied = e instanceof Error && e.name === "NotAllowedError";
+      setError(
+        denied
+          ? "Mic blocked. iPhone: Settings › Safari › Microphone › Allow, then reload."
+          : "Mic was busy. Tap the mic again.",
+      );
       setStatus("idle");
     }
   }

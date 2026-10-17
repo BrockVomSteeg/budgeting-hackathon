@@ -131,6 +131,17 @@ export function unlockAudio() {
   if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 }
 
+/**
+ * Re-arms the <audio> element inside a tap. iOS only lets an element play later without a gesture
+ * if a gesture played it after the mic was last opened, so call this on the "send" tap.
+ */
+export function primeAudio() {
+  player ??= new Audio();
+  player.src = SILENCE;
+  dbg("prime audio (send tap)");
+  player.play().catch((err) => dbg(`prime: play() rejected ${err instanceof Error ? err.name : err}`));
+}
+
 let cancelSpeech: (() => void) | null = null;
 
 /** Cuts off the current answer, if one is playing. */
