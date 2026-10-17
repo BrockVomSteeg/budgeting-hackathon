@@ -1,4 +1,6 @@
-# 🎙️ ElevenLabs Agent Setup (strong dev, ~5 min)
+# 🎙️ ElevenLabs Agent Setup (optional, ~5 min)
+
+> Optional and currently **unused**: the app is tap-to-ask only, and `components/LiveCall.tsx` is not rendered in `app/page.tsx`. The live agent can't use Gordon's Fish Audio voice. Keep this for re-enabling the 📞 call.
 
 1. **elevenlabs.io → Agents → New agent → Blank.** Name: `Can I Afford It`
 2. **LLM:** pick the newest Claude model in the list (Haiku = fastest). It's billed by ElevenLabs.
@@ -33,6 +35,6 @@ Rules:
    - `ELEVENLABS_API_KEY` = the key
    - `ELEVENLABS_AGENT_ID` = agent ID (starts with `agent_`)
    - `ELEVENLABS_VOICE_OVERRIDE` = `1` (only if step 6 Voice override is on)
-9. **Test on a phone:** tap 📞 → say "can I afford a $400 jacket?" → roast + ❌ card. 🎉
+9. **Test on a phone** (needs `LiveCall` added back to the page): tap 📞 → say "can I afford a $400 jacket?" → roast + ❌ card. 🎉
 
 ⚠️ The free tier is about 15 agent minutes. Hang up between tests. Save the minutes for rehearsal and the demo.

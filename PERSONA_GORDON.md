@@ -3,8 +3,8 @@
 The 🍳 `chef` persona is a written impression of Gordon Ramsay, rated R18+. This file holds the research behind it. The prompt itself lives in code, so edit it there:
 
 - `lib/gordon.ts`: `GORDON_VIBE` (personality, catchphrases, examples) and `GORDON_RULES` (R18+ content rules)
-- `lib/personas.ts`: plugs both into the `chef` persona. The other personas use the PG-13 rules.
-- `lib/prompt.ts` (typed `/api/ask` path) and `AGENT_SETUP.md` (`{{persona_vibe}}` / `{{persona_rules}}` for the live ElevenLabs agent) both read from the persona.
+- `lib/personas.ts`: plugs both into the `chef` persona, the only persona in the app.
+- `lib/prompt.ts` (the `/api/ask` path) and `AGENT_SETUP.md` (`{{persona_vibe}}` / `{{persona_rules}}` for the optional, currently unused live ElevenLabs agent) both read from the persona.
 - `lib/mock.ts`: R18+ fallback lines for when there's no API key or Claude refuses.
 
 Voice: in tap-to-ask mode `/api/speak` uses the Fish Audio Gordon Ramsay voice (`fishVoiceId` in `lib/personas.ts`, needs `FISH_API_KEY`), falling back to the ElevenLabs "George" voice. Live calls run inside the ElevenLabs agent, which can only use ElevenLabs voices, so the app keeps Gordon in tap mode.

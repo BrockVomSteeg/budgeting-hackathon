@@ -2,12 +2,12 @@
 
 **Setup:** phone, Bluetooth speaker, hotspot on, app open, 🍳 Gordon at the top, Settings → Reset demo data, one warm-up question already asked.
 
-**Format: freestyle.** Ask Gordon anything, live. Each question takes about 20s (Gordon talks 11–17s), so plan on **2 questions** inside 60s.
+**Format: freestyle.** Ask Gordon any "can I afford X?" question, live. Each question takes about 20s (Gordon talks 11–17s), so plan on **2 questions** inside 60s.
 
 | ⏱️ | What |
 |---|---|
 | 0–8s | Presenter: "Budget apps make you stare at charts. We made one you just *talk* to." |
-| 8–50s | 🎙️ Tap Gordon → ask anything → tap to send. Repeat once. |
+| 8–50s | 🎙️ Tap Gordon → ask → stop talking (it sends itself). Repeat once. |
 | 50–60s | Presenter: "No screens, no spreadsheets. Every answer is live AI on your real budget." |
 
 **Questions that land well** (tested live):
@@ -19,6 +19,6 @@
 ⚠️ Gordon swears, even on a "yes". Warn the hosts.
 
 ## 🛟 If something breaks
-- 🎙️ Mic fails → type in the text box and keep talking over it
+- 🎙️ Mic fails → tap the chat icon (top right), type the question, and keep talking over it
 - 🔇 No audio → read the on-screen roast in character 😂
 - 📶 Total failure → play the backup video
