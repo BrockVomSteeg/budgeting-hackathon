@@ -46,3 +46,27 @@ h1 { margin: 0; font-size: 1.9rem; }
 .transcript li { padding: 10px 12px; border-radius: 12px; background: var(--card); line-height: 1.35; }
 .transcript .t-you { align-self: flex-end; background: #2a2340; color: var(--muted); }
 .mode-switch { align-self: center; background: none; border: none; color: var(--muted); text-decoration: underline; font-size: 0.85rem; cursor: pointer; }
+
+.budget { background: var(--card); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.budget-head { display: flex; flex-direction: column; }
+.budget-kicker { color: var(--muted); font-size: 0.85rem; }
+.budget-hero { font-size: 2.6rem; font-weight: 800; line-height: 1.1; }
+.budget-sub { color: var(--muted); font-size: 0.85rem; }
+.meters { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.meter-row { width: 100%; display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 12px; border: 1px solid transparent; background: none; color: var(--text); font-size: 0.9rem; text-align: left; cursor: pointer; }
+.meter-row.selected { border-color: #2a2a3d; background: #1d1d2e; }
+.meter-top { display: flex; justify-content: space-between; gap: 8px; }
+.meter-left { color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter { --c: var(--yes); position: relative; display: flex; gap: 2px; height: 10px; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--c) 18%, var(--card)); }
+.meter-tight { --c: var(--tight); }
+.meter-maxed { --c: var(--no); }
+.meter-fill { background: var(--c); border-radius: 4px; transition: width 0.2s; }
+.meter-add { border-radius: 4px; transition: width 0.15s; background: repeating-linear-gradient(45deg, var(--v), var(--v) 3px, transparent 3px, transparent 6px); }
+.meter-add-yes { --v: var(--yes); }
+.meter-add-tight { --v: var(--tight); }
+.meter-add-no { --v: var(--no); }
+.lever { display: flex; flex-direction: column; gap: 6px; }
+.lever-top { display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--muted); }
+.lever-amount { color: var(--text); font-weight: 700; }
+.lever input { width: 100%; accent-color: var(--accent); }
+.lever-result { margin: 0; font-size: 0.9rem; min-height: 1.3em; }

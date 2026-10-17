@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { BudgetMeters } from "@/components/BudgetMeters";
 import { LiveCall } from "@/components/LiveCall";
 import { PersonaPicker } from "@/components/PersonaPicker";
 import { VerdictCard } from "@/components/VerdictCard";
+import { demoBudget } from "@/data/budget";
 import { personas } from "@/lib/personas";
 import type { AskResponse, PersonaId, Turn } from "@/lib/types";
 import { LIMITS } from "@/lib/types";
@@ -137,6 +139,8 @@ export default function Home() {
           replayDisabled={status !== "idle"}
         />
       )}
+
+      <BudgetMeters budget={demoBudget} />
 
       <form className="type" onSubmit={onSubmit}>
         <input
