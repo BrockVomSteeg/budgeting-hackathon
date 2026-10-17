@@ -8,7 +8,8 @@ import { personas } from "./personas";
 import { systemPrompt, userPrompt } from "./prompt";
 import { mockAnswer } from "./mock";
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+// Haiku: cheapest + fastest for short spoken replies. Override with ANTHROPIC_MODEL.
+export const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
 
 const Reply = z.object({
   item: z.string().nullable(),

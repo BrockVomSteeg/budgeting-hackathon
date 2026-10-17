@@ -35,6 +35,9 @@ export async function POST(req: Request) {
     return NextResponse.json(await askClaude(demoBudget, text, persona, history));
   } catch (err) {
     console.error("ask: claude failed, using mock", err instanceof Error ? err.message : err);
-    return NextResponse.json(mockAnswer(demoBudget, text, persona));
+    const reason = err instanceof Error ? err.constructor.name : "unknown";
+    return NextResponse.json(mockAnswer(demoBudget, text, persona), {
+      headers: { "x-fallback-reason": reason },
+    });
   }
 }
