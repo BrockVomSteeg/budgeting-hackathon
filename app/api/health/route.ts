@@ -9,6 +9,8 @@ export function GET() {
     {
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
       model: MODEL,
+      fishKey: Boolean(process.env.FISH_API_KEY),
+      fishVoice: Boolean(process.env.FISH_VOICE_ID),
       elevenlabsKey: Boolean(process.env.ELEVENLABS_API_KEY),
       elevenlabsAgent: Boolean(process.env.ELEVENLABS_AGENT_ID),
       voiceOverride: process.env.ELEVENLABS_VOICE_OVERRIDE === "1",
