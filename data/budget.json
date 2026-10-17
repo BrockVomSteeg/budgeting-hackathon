@@ -10,5 +10,15 @@
     { "id": "fun", "label": "Fun & games", "limit": 250, "spent": 190 },
     { "id": "travel", "label": "Travel", "limit": 400, "spent": 0 },
     { "id": "bills", "label": "Bills", "limit": 1800, "spent": 1800 }
-  ]
+  ],
+  "year": {
+    "daysLeft": 75,
+    "categories": [
+      { "id": "food", "limit": 7200, "spent": 5480 },
+      { "id": "shopping", "limit": 3600, "spent": 3150 },
+      { "id": "fun", "limit": 3000, "spent": 2050 },
+      { "id": "travel", "limit": 4800, "spent": 4100 },
+      { "id": "bills", "limit": 21600, "spent": 17100 }
+    ]
+  }
 }

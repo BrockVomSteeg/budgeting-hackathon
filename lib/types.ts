@@ -18,6 +18,11 @@ export interface Budget {
   checking: number;
   upcomingBills: number;
   categories: Category[];
+  /** Optional year-to-date view: yearly limit and spend per category. */
+  year?: {
+    daysLeft: number;
+    categories: Pick<Category, "id" | "limit" | "spent">[];
+  };
 }
 
 export interface Persona {
