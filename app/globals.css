@@ -42,20 +42,24 @@ input { font: inherit; }
 .avatar-face { position: relative; width: 160px; height: 210px; margin-bottom: -6px; transform-origin: 50% 100%; filter: drop-shadow(0 8px 14px rgba(8, 30, 90, 0.28)); transition: width 0.2s, height 0.2s, filter 0.2s; animation: breathe 3.2s ease-in-out infinite; }
 .compact .avatar-face { width: 61px; height: 80px; margin-bottom: 0; }
 .avatar-face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom; opacity: 0; pointer-events: none; }
-.avatar-face[data-frame="idle"] img[data-f="idle"], .avatar-face[data-frame="talk"] img[data-f="talk"], .avatar-face[data-frame="smile"] img[data-f="smile"], .avatar-face[data-frame="cheer"] img[data-f="cheer"] { opacity: 1; }
+.avatar-pose { position: absolute; inset: 0; transform-origin: 50% 85%; transition: transform 0.12s ease-out; }
+.avatar-face img.on { opacity: 1; }
 .avatar-label { font-size: 0.78rem; font-weight: 600; opacity: 0.9; }
 .compact .avatar-label { display: none; }
 .avatar-debug { font: 10px ui-monospace, monospace; max-width: 260px; text-align: center; opacity: 0.85; }
 .avatar-listening .avatar-face { animation: listen 1.2s infinite; }
 .avatar-thinking .avatar-face { animation: wobble 0.9s ease-in-out infinite; }
-.avatar-speaking .avatar-face { animation: bob 0.7s ease-in-out infinite; }
+.avatar-speaking .avatar-face { animation: pop 0.35s ease-out, bob 0.7s 0.35s ease-in-out infinite; }
+.avatar-speaking.avatar-angry .avatar-face { animation: shake 0.5s ease-in-out, bob 0.7s 0.5s ease-in-out infinite; }
 .avatar-speaking.avatar-angry .avatar-face { filter: drop-shadow(0 0 18px rgba(255, 90, 90, 0.75)); }
 .avatar-speaking.avatar-happy .avatar-face { filter: drop-shadow(0 0 18px rgba(110, 231, 140, 0.75)); }
 @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
 @keyframes listen { 0%, 100% { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5)); } 50% { filter: drop-shadow(0 0 22px rgba(255, 255, 255, 0.95)); } }
 @keyframes wobble { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes pop { 0% { transform: scale(0.94); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes shake { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-7deg); } 40% { transform: rotate(6deg); } 60% { transform: rotate(-4deg); } 80% { transform: rotate(2deg); } }
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@media (prefers-reduced-motion: reduce) { .avatar-face { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .avatar-face { animation: none !important; } .avatar-pose { transform: none !important; } }
 
 .bubble { position: relative; align-self: center; max-width: 100%; display: flex; align-items: flex-start; gap: 8px; text-align: left; background: #fff; color: var(--navy); border: none; border-radius: 18px; padding: 10px 14px; font-size: 0.93rem; line-height: 1.35; box-shadow: 0 6px 20px rgba(8, 30, 90, 0.18); }
 .bubble::before { content: ""; position: absolute; top: -6px; left: 50%; width: 14px; height: 14px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 3px; }

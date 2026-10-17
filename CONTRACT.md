@@ -20,7 +20,7 @@ interface Persona {
   rules: string;           // content rating (PG-13, or R18+ for Gordon), injected into both prompts
   voiceId: string;         // ElevenLabs premade voice id
   fishVoiceId?: string;    // Fish Audio voice; /api/speak prefers it, persona is tap-mode only
-  avatar?: string;         // /public folder of talking-head frames (idle/talk/shout/smile/grin.webp), replaces the mic
+  avatar?: string;         // /public folder of talking-head frames (see components/ChefAvatar.tsx), replaces the mic
   browserVoice: { pitch: number; rate: number }; // fallback TTS
 }
 

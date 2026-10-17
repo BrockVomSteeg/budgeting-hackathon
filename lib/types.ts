@@ -33,7 +33,7 @@ export interface Persona {
   rules: string;
   voiceId: string;
   fishVoiceId?: string;
-  avatar?: string; // folder in /public with idle/talk/smile/cheer.webp talking-head frames
+  avatar?: string; // /public folder of talking-head frames (see EXPRESSIONS in components/ChefAvatar.tsx)
   browserVoice: { pitch: number; rate: number };
 }
 
