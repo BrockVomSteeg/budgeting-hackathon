@@ -17,6 +17,7 @@ export default function Home() {
   const [heard, setHeard] = useState("");
   const [typed, setTyped] = useState("");
   const [answer, setAnswer] = useState<AskResponse | null>(null);
+  const [spokenBy, setSpokenBy] = useState<PersonaId>("sergeant");
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"live" | "tap">("tap");
   const history = useRef<Turn[]>([]);
@@ -40,6 +41,7 @@ export default function Home() {
       if (!r.ok) throw new Error(r.status === 429 ? "Too fast. Breathe." : "Something broke.");
       const a: AskResponse = await r.json();
       setAnswer(a);
+      setSpokenBy(persona);
       history.current = [
         ...history.current,
         { role: "user" as const, text },
@@ -50,6 +52,14 @@ export default function Home() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something broke.");
     }
+    setStatus("idle");
+  }
+
+  async function onReplay() {
+    if (!answer?.line || status !== "idle") return;
+    unlockAudio();
+    setStatus("speaking");
+    await speak(answer.line, personas[spokenBy]);
     setStatus("idle");
   }
 
@@ -112,7 +122,13 @@ export default function Home() {
 
       {heard && <p className="heard">“{heard}”</p>}
       {error && <p className="error" role="alert">{error}</p>}
-      {answer && <VerdictCard answer={answer} />}
+      {answer && (
+        <VerdictCard
+          answer={answer}
+          onReplay={view === "tap" && answer.line ? onReplay : undefined}
+          replayDisabled={status !== "idle"}
+        />
+      )}
 
       <form className="type" onSubmit={onSubmit}>
         <input
