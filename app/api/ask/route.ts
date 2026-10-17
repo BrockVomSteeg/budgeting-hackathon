@@ -28,6 +28,11 @@ const clean = (s: string) => s.replace(/"""/g, "\"").replace(/\b(system|assistan
 const reply = (a: AskResponse, persona: PersonaId, init?: ResponseInit) =>
   NextResponse.json({ ...a, sig: signLine(persona, a.line) }, init);
 
+// The app pings this when it opens so the first real question doesn't pay for a cold start.
+export function GET() {
+  return new Response(null, { status: 204 });
+}
+
 export async function POST(req: Request) {
   if (rateLimited(req)) return NextResponse.json({ error: "slow down" }, { status: 429 });
 

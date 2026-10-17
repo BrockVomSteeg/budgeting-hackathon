@@ -68,6 +68,11 @@ function App() {
     localStorage.setItem("ciai-speaker", speaker ? "on" : "off");
   }, [speaker]);
 
+  // Warm the server so the first question doesn't wait for a cold start.
+  useEffect(() => {
+    for (const path of ["/api/ask", "/api/transcribe", "/api/speak"]) fetch(path, { cache: "no-store" }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const onScroll = () => setCompact(window.scrollY > 60);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -144,7 +149,7 @@ function App() {
     });
   }
 
-  // Record -> server speech-to-text -> ask. Tap again (or 10s) to send.
+  // Record -> server speech-to-text -> ask. Sends by itself when you stop talking (or tap, or 10s).
   async function recordQuestion() {
     setStatus("listening");
     let sent = false;
@@ -185,7 +190,7 @@ function App() {
     ask(text);
   }
 
-  const label = { idle: "Tap to ask Gordon", listening: "Listening… tap to send", thinking: "Thinking…", speaking: "Tap to skip" }[status];
+  const label = { idle: "Tap to ask Gordon", listening: "Listening… just stop talking", thinking: "Thinking…", speaking: "Tap to skip" }[status];
   const mood = status !== "listening" && status !== "thinking" && answer?.verdict === "yes" ? "happy" : "angry";
   const bubble =
     status === "listening" ? heard || "I'm listening…" : status === "thinking" ? "…" : error || answer?.line || GREETING;

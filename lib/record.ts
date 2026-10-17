@@ -3,11 +3,58 @@
 // Records the question ourselves and transcribes it on the server (Fish Audio).
 // More reliable than Safari's built-in speech recognition, which often hears nothing.
 import { dbg } from "./debug.ts";
+import { audioContext } from "./voice.ts";
 
 export const recorderSupported = () =>
   typeof window !== "undefined" && "MediaRecorder" in window && !!navigator.mediaDevices?.getUserMedia;
 
-/** Starts recording. Returns finish(), which stops and resolves the audio. Calls onCap after maxMs. */
+/**
+ * Calls onDone ~0.8s after the speaker stops talking (or after 6s of nothing), so nobody has to tap
+ * "send". Uses the tap-unlocked audio context; if there isn't one running, it does nothing and the
+ * tap / time cap still work. Returns a cleanup function.
+ */
+function endOfSpeech(stream: MediaStream, onDone: () => void): () => void {
+  const ctx = audioContext();
+  if (!ctx || ctx.state !== "running") {
+    dbg("recorder: no running audio context, auto-send off");
+    return () => {};
+  }
+  const src = ctx.createMediaStreamSource(stream);
+  const an = ctx.createAnalyser();
+  an.fftSize = 1024;
+  src.connect(an); // not to the speakers
+  const buf = new Uint8Array(an.fftSize);
+  const t0 = performance.now();
+  let floor = 0.01;
+  let heard = false;
+  let lastLoud = t0;
+  const timer = setInterval(() => {
+    an.getByteTimeDomainData(buf);
+    let sum = 0;
+    for (const v of buf) sum += ((v - 128) / 128) ** 2;
+    const rms = Math.sqrt(sum / buf.length);
+    const now = performance.now();
+    if (now - t0 < 300) floor = Math.max(floor, rms); // room noise while the mic settles
+    const loud = rms > Math.max(0.02, floor * 2.5);
+    if (loud) {
+      if (!heard) dbg("recorder: speech started");
+      heard = true;
+      lastLoud = now;
+    }
+    if ((heard && now - lastLoud > 800) || (!heard && now - t0 > 6000)) {
+      dbg(heard ? "recorder: speech ended, sending" : "recorder: no speech, sending");
+      stop();
+      onDone();
+    }
+  }, 50);
+  const stop = () => {
+    clearInterval(timer);
+    src.disconnect();
+  };
+  return stop;
+}
+
+/** Starts recording. Returns finish(), which stops and resolves the audio. Calls onCap after maxMs or when speech ends. */
 export async function startRecording(onCap: () => void, maxMs = 10_000): Promise<() => Promise<Blob>> {
   dbg("recorder: asking for mic");
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -37,8 +84,10 @@ export async function startRecording(onCap: () => void, maxMs = 10_000): Promise
   rec.start();
   dbg(`recorder: started ${rec.mimeType || mime || "default type"}`);
   const cap = setTimeout(onCap, maxMs);
+  const stopVad = endOfSpeech(stream, onCap);
   return () => {
     clearTimeout(cap);
+    stopVad();
     if (rec.state !== "inactive") rec.stop();
     return stopped;
   };

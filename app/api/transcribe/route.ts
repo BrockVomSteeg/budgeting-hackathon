@@ -7,6 +7,11 @@ export const runtime = "nodejs";
 const MAX_BYTES = 3_000_000; // ~10s of speech is far below this
 
 // Speech-to-text via Fish Audio. 501 = not configured, so the client uses the browser's recognizer.
+// Warm-up ping from the app (see /api/ask).
+export function GET() {
+  return new Response(null, { status: 204 });
+}
+
 export async function POST(req: Request) {
   const key = process.env.FISH_API_KEY;
   if (!key) return NextResponse.json({ error: "stt off" }, { status: 501 });

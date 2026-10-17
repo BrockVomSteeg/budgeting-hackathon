@@ -176,6 +176,9 @@ export function voiceLevel(): number {
   return level;
 }
 
+/** The app's audio context, resumed on every tap (so it's usable right after one). */
+export const audioContext = () => ctx;
+
 /** For ?debug=1: what the meter sees. */
 export function audioDebug(): string {
   const playing = !!player && !player.paused;
