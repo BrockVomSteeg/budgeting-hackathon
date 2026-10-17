@@ -96,8 +96,17 @@ export function mockAnswer(b: Budget, text: string, persona: PersonaId): AskResp
       source: "mock",
     };
   }
-  const category = guessCategory(text);
-  const item = guessItem(text);
+  return mockForPurchase(b, persona, guessItem(text), amount, guessCategory(text));
+}
+
+/** Template line for a purchase whose item, amount and category are already known. */
+export function mockForPurchase(
+  b: Budget,
+  persona: PersonaId,
+  item: string,
+  amount: number,
+  category: CategoryId,
+): AskResponse {
   const { verdict, remainingAfter } = decide(b, amount, category);
   const left = usd(categoryLeft(b, category));
   const line =
