@@ -8,7 +8,7 @@ const noAudio = () => new Response(null, { status: 204 });
 
 export async function POST(req: Request) {
   const key = process.env.ELEVENLABS_API_KEY;
-  if (!key || rateLimited(req, 30)) return noAudio();
+  if (!key || rateLimited(req)) return noAudio();
 
   const body = await req.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.slice(0, LIMITS.speakMax) : "";

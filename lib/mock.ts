@@ -1,5 +1,5 @@
 import type { AskResponse, Budget, CategoryId, PersonaId } from "./types";
-import { categoryLeft, decide, safeToSpend } from "./budget";
+import { categoryLeft, decide, safeToSpend } from "./budget.ts";
 
 const KEYWORDS: Record<CategoryId, string[]> = {
   food: ["coffee", "latte", "lunch", "dinner", "food", "pizza", "burrito", "sushi", "boba", "grocer", "taco"],
@@ -9,23 +9,57 @@ const KEYWORDS: Record<CategoryId, string[]> = {
   shopping: [],
 };
 
+const SMALL: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50,
+  sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+
+/** "four hundred" -> 400, "twelve hundred" -> 1200, "two thousand five hundred" -> 2500 */
+function wordsToNumber(text: string): number | null {
+  let total = 0;
+  let cur = 0;
+  let seen = false;
+  for (const w of text.toLowerCase().split(/[\s-]+/)) {
+    if (w in SMALL) { cur += SMALL[w]; seen = true; }
+    else if (w === "hundred" && seen) cur = (cur || 1) * 100;
+    else if ((w === "thousand" || w === "grand") && seen) { total += (cur || 1) * 1000; cur = 0; }
+    else if (seen && w !== "and") break;
+  }
+  const n = total + cur;
+  return seen && n > 0 ? n : null;
+}
+
+const toNum = (digits: string, mult?: string) => Number(digits) * (mult ? 1000 : 1);
+
 export function parseAmount(text: string): number | null {
-  const m = text.replace(/,/g, "").match(/\$?\s*(\d+(?:\.\d{1,2})?)\s*(k|grand|thousand)?/i);
-  if (!m) return null;
-  const n = Number(m[1]) * (m[2] ? 1000 : 1);
-  return Number.isFinite(n) && n > 0 ? n : null;
+  const t = text.replace(/,/g, "");
+  // Prefer numbers tied to money: "$1200", "400 dollars", "1.5k"
+  const money =
+    t.match(/\$\s*(\d+(?:\.\d+)?)\s*(k|grand|thousand)?\b/i) ??
+    t.match(/\b(\d+(?:\.\d+)?)\s*(k|grand|thousand)?\s*(?:dollars?|bucks?)\b/i) ??
+    t.match(/\b(\d+(?:\.\d+)?)\s*(k|grand|thousand)\b/i);
+  const n = money
+    ? toNum(money[1], money[2])
+    : (() => {
+        const bare = [...t.matchAll(/\b(\d+(?:\.\d+)?)\b/g)].map((m) => Number(m[1]));
+        return bare.length ? Math.max(...bare) : wordsToNumber(t);
+      })();
+  return n !== null && Number.isFinite(n) && n > 0 ? n : null;
 }
 
 export function guessCategory(text: string): CategoryId {
   const t = text.toLowerCase();
   for (const [id, words] of Object.entries(KEYWORDS) as [CategoryId, string[]][]) {
-    if (words.some((w) => t.includes(w))) return id;
+    if (words.some((w) => new RegExp(`\\b${w}`).test(t))) return id;
   }
   return "shopping";
 }
 
 function guessItem(text: string): string {
-  const m = text.match(/(?:a|an|the|some)\s+(?:\$?[\d,.]+\s*(?:dollar\s*)?)?([a-z0-9 ]{2,30}?)(?:\s+for|\?|$)/i);
+  const m = text.match(
+    /\b(?:a|an|the|some)\s+(?:\$?[\d,.]+\s*(?:k\b)?\s*(?:dollars?\s*)?)?(?:[a-z]+\s+(?:hundred|thousand)\s+(?:dollars?\s*)?)?([a-z][a-z0-9 ]{1,30}?)(?:\s+for\b|[?.!]|$)/i,
+  );
   return m?.[1]?.trim() || "that";
 }
 

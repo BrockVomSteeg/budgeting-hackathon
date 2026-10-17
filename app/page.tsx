@@ -21,7 +21,10 @@ export default function Home() {
   const stop = useRef<() => void>(() => {});
 
   async function ask(text: string) {
-    if (!text) return setStatus("idle");
+    if (!text) {
+      setError("Didn't catch that. Try again.");
+      return setStatus("idle");
+    }
     setError("");
     setHeard(text);
     setStatus("thinking");
@@ -30,6 +33,7 @@ export default function Home() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text, persona, history: history.current }),
+        signal: AbortSignal.timeout(20_000),
       });
       if (!r.ok) throw new Error(r.status === 429 ? "Too fast. Breathe." : "Something broke.");
       const a: AskResponse = await r.json();
@@ -64,8 +68,9 @@ export default function Home() {
     e.preventDefault();
     unlockAudio();
     const t = typed.trim().slice(0, LIMITS.textMax);
+    if (status !== "idle") return;
     setTyped("");
-    if (status === "idle") ask(t);
+    ask(t);
   }
 
   const micLabel = { idle: "Tap & ask", listening: "Listening… tap to send", thinking: "Thinking…", speaking: "Talking…" }[status];

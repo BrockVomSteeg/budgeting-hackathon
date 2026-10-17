@@ -19,7 +19,7 @@ const Reply = z.object({
 });
 
 let client: Anthropic | null = null;
-const getClient = () => (client ??= new Anthropic({ timeout: 15_000, maxRetries: 1 }));
+const getClient = () => (client ??= new Anthropic({ timeout: 10_000, maxRetries: 0 }));
 
 export const hasClaude = () => Boolean(process.env.ANTHROPIC_API_KEY);
 

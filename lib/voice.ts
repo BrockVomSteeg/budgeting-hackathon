@@ -39,8 +39,25 @@ export function listen(onText: (t: string) => void, onDone: (t: string) => void,
   rec.onerror = (e) => {
     if (e.error !== "no-speech" && e.error !== "aborted") onError(`Mic error: ${e.error}`);
   };
-  rec.onend = () => onDone(text.trim());
-  rec.start();
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    clearTimeout(watchdog);
+    onDone(text.trim());
+  };
+  rec.onend = finish;
+  const watchdog = setTimeout(() => {
+    rec.stop();
+    setTimeout(finish, 1000); // iOS sometimes never fires onend
+  }, 12_000);
+  try {
+    rec.start();
+  } catch {
+    done = true;
+    clearTimeout(watchdog);
+    onError("Mic busy, try again.");
+  }
   return () => rec.stop();
 }
 
@@ -50,6 +67,9 @@ let ctx: AudioContext | null = null;
 export function unlockAudio() {
   ctx ??= new AudioContext();
   ctx.resume().catch(() => {});
+  // Play through the iOS silent switch (Safari 17+).
+  const nav = navigator as Navigator & { audioSession?: { type: string } };
+  if (nav.audioSession) nav.audioSession.type = "playback";
   if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 }
 
@@ -65,6 +85,9 @@ async function playMp3(buf: ArrayBuffer): Promise<void> {
     src.start();
   });
 }
+
+const withTimeout = (p: Promise<void>, ms = 20_000) =>
+  Promise.race([p, new Promise<void>((r) => setTimeout(r, ms))]);
 
 function browserSpeak(text: string, p: Persona): Promise<void> {
   return new Promise((resolve) => {
@@ -88,13 +111,13 @@ export async function speak(text: string, p: Persona): Promise<void> {
       body: JSON.stringify({ text, persona: p.id }),
     });
     if (r.status === 200) {
-      await playMp3(await r.arrayBuffer());
+      await withTimeout(playMp3(await r.arrayBuffer()));
       return;
     }
   } catch {
     // fall through to the browser voice
   }
-  await browserSpeak(text, p);
+  await withTimeout(browserSpeak(text, p));
 }
 
 declare global {
