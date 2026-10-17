@@ -11,7 +11,8 @@ You ask *"Can I afford a $400 jacket?"* → it does the math → **"No."** → t
 
 ## ✅ Must-have (by 4:00 PM)
 1. 📱 Phone web app (mobile-first, one screen, works in the phone's browser)
-2. 🎙️ Hold-to-talk mic → speech-to-text (Web Speech API, with a text box fallback)
+2. 📞 **Primary: ElevenLabs live voice agent** (real conversation you can interrupt, Claude as the LLM inside ElevenLabs, our code does the math as a client tool)
+2b. 🛟 Backup: tap-to-ask (Web Speech API + `/api/ask` Claude + text box)
 3. 🧠 `/api/ask` → Claude reads the question + budget → verdict + a dynamic roast in the persona's voice
 4. 🧮 Code double-checks the math (Claude extracts the amount and category, code decides yes/no)
 5. 🔊 `/api/speak` → ElevenLabs TTS per persona (falls back to the browser voice)

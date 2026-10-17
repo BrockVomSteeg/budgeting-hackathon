@@ -49,5 +49,17 @@ interface Turn { role: "user" | "assistant"; text: string }
 // res 204 (no key / error)   → client uses speechSynthesis with persona.browserVoice
 ```
 
+## `GET /api/agent-token` 📞
+```ts
+// res 200 { token: string, voiceOverride: boolean } → startSession({ conversationToken, connectionType: "webrtc" })
+// res 204 → live agent not configured, client switches to tap mode
+```
+
+## Client tool `check_affordability` (ElevenLabs agent → browser) 🧮
+```ts
+// in:  { item: string, amount: number, category: CategoryId }
+// out: JSON string { verdict, item, amount, category, category_left, left_after, safe_to_spend_overall }
+```
+
 ## 🔑 Env (server only)
-`ANTHROPIC_API_KEY` · `ELEVENLABS_API_KEY` · optional `ANTHROPIC_MODEL`
+`ANTHROPIC_API_KEY` · `ELEVENLABS_API_KEY` · `ELEVENLABS_AGENT_ID` · `ELEVENLABS_VOICE_OVERRIDE` · optional `ANTHROPIC_MODEL`

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { LiveCall } from "@/components/LiveCall";
 import { PersonaPicker } from "@/components/PersonaPicker";
 import { VerdictCard } from "@/components/VerdictCard";
 import { personas } from "@/lib/personas";
@@ -17,6 +18,7 @@ export default function Home() {
   const [typed, setTyped] = useState("");
   const [answer, setAnswer] = useState<AskResponse | null>(null);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"live" | "tap">("live");
   const history = useRef<Turn[]>([]);
   const stop = useRef<() => void>(() => {});
 
@@ -84,6 +86,16 @@ export default function Home() {
 
       <PersonaPicker value={persona} onChange={setPersona} />
 
+      {mode === "live" ? (
+        <LiveCall
+          persona={persona}
+          onVerdict={setAnswer}
+          onUnavailable={() => {
+            setMode("tap");
+            setError("Live call isn't set up yet. Using tap-to-ask.");
+          }}
+        />
+      ) : (
       <button
         className={`mic mic-${status}`}
         onClick={onMic}
@@ -93,6 +105,7 @@ export default function Home() {
         <span className="mic-icon">{status === "listening" ? "👂" : status === "thinking" ? "🧠" : status === "speaking" ? "🔊" : "🎙️"}</span>
         <span className="mic-label">{micLabel}</span>
       </button>
+      )}
 
       {heard && <p className="heard">“{heard}”</p>}
       {error && <p className="error" role="alert">{error}</p>}
@@ -109,7 +122,11 @@ export default function Home() {
         <button type="submit" disabled={!typed.trim() || status !== "idle"}>Ask</button>
       </form>
 
-      {answer && <p className="source">{answer.source === "claude" ? "⚡ live AI" : "🧪 mock mode"}</p>}
+      <button className="mode-switch" onClick={() => setMode(mode === "live" ? "tap" : "live")}>
+        {mode === "live" ? "Backup: tap-to-ask mode" : "Back to live call"}
+      </button>
+
+      {answer && mode === "tap" && <p className="source">{answer.source === "claude" ? "⚡ live AI" : "🧪 mock mode"}</p>}
     </main>
   );
 }

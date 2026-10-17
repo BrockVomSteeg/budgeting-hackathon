@@ -3,14 +3,15 @@
 > Claude scaffolds everything working in mock mode first (~2:30 PM). Then each person **owns and upgrades** their files. Pull often, commit small, push to `main`.
 
 ## 💪 Strong dev: AI + voice backend
-Files: `app/api/ask/route.ts` · `app/api/speak/route.ts` · `lib/claude.ts` · `lib/ratelimit.ts`
+Files: `app/api/*` · `lib/claude.ts` · `lib/agent.ts` · `lib/ratelimit.ts`
+- [ ] 🔥 **FIRST: do [AGENT_SETUP.md](AGENT_SETUP.md)** (ElevenLabs live agent)
 - [ ] Add keys in Vercel env vars (Prod + Preview), redeploy
 - [ ] Verify live Claude JSON output + math override
 - [ ] ElevenLabs: Flash model, test latency on phone over hotspot
 - [ ] Get time from tap to first audio under ~3s
 
 ## 🎯 Mid dev #1 (you): voice UX on the phone
-Files: `app/page.tsx` · `components/*` · `lib/voice.ts`
+Files: `app/page.tsx` · `components/*` · `lib/voice.ts` (live call UI is `components/LiveCall.tsx`)
 - [ ] Hold-to-talk feels great on the demo phone
 - [ ] iOS audio unlock + speech fallback tested
 - [ ] Big verdict card (✅/❌), persona picker, loading state

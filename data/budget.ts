@@ -1,4 +1,4 @@
-import type { Budget } from "@/lib/types";
+import type { Budget } from "../lib/types";
 
 // Fake demo data, tuned so DEMO.md lines land: coffee = yes, jacket = no, PS6 = no.
 export const demoBudget: Budget = {
