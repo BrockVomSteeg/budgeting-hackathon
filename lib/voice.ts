@@ -132,24 +132,99 @@ export function setSpeakerMode(on: boolean) {
   if (boost) boost.gain.value = on ? BOOST : 1;
 }
 
+let input: GainNode | null = null;
+
+/** Everything Gordon says goes in here: metered for the mouth, then boosted and limited to the speaker. */
+function bus(c: AudioContext): AudioNode {
+  if (input) return input;
+  input = c.createGain();
+  const limiter = c.createDynamicsCompressor();
+  limiter.threshold.value = -6;
+  limiter.ratio.value = 12;
+  boost = c.createGain();
+  boost.gain.value = speakerMode ? BOOST : 1;
+  analyser = c.createAnalyser();
+  analyser.fftSize = samples.length;
+  input.connect(analyser); // meter the raw voice, before the boost
+  input.connect(boost);
+  boost.connect(limiter);
+  limiter.connect(c.destination);
+  return input;
+}
+
+let elementRouted = false;
 function meter(a: HTMLAudioElement) {
-  if (analyser || !ctx || ctx.state !== "running") return;
+  if (elementRouted || !ctx || ctx.state !== "running") return;
   try {
-    const src = ctx.createMediaElementSource(a);
-    const limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = -6;
-    limiter.ratio.value = 12;
-    boost = ctx.createGain();
-    boost.gain.value = speakerMode ? BOOST : 1;
-    analyser = ctx.createAnalyser();
-    analyser.fftSize = samples.length;
-    src.connect(analyser); // meter the raw voice, before the boost
-    src.connect(boost);
-    boost.connect(limiter);
-    limiter.connect(ctx.destination);
+    ctx.createMediaElementSource(a).connect(bus(ctx));
+    elementRouted = true;
   } catch {
-    analyser = null;
+    // can't route it: the mouth flaps instead
   }
+}
+
+// Clips played straight through Web Audio (thinking noises and streamed answer chunks). Once the
+// context is running these need no tap, unlike the <audio> element after the mic has been open.
+let sources: AudioBufferSourceNode[] = [];
+let scheduledUntil = 0;
+let lastClip: Promise<void> = Promise.resolve();
+const webAudioReady = () => !!ctx && ctx.state === "running";
+
+function playBuffer(buf: AudioBuffer): Promise<void> {
+  const c = ctx!;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.connect(bus(c));
+  const at = Math.max(c.currentTime + 0.03, scheduledUntil); // back to back, no gaps
+  src.start(at);
+  scheduledUntil = at + buf.duration;
+  sources.push(src);
+  clipStart = performance.now();
+  clipPeak = 0;
+  lastClip = new Promise((resolve) => {
+    src.onended = () => {
+      sources = sources.filter((x) => x !== src);
+      resolve();
+    };
+  });
+  return lastClip;
+}
+
+function stopClips() {
+  for (const s of sources) {
+    try {
+      s.stop();
+    } catch {
+      // already stopped
+    }
+  }
+  sources = [];
+  scheduledUntil = 0;
+}
+
+// "Thinking" noises, played the moment a question is sent so the wait sounds like Gordon reacting.
+const FILLERS = [1, 2, 3, 4, 5, 6].map((n) => `/gordon/fillers/${n}.mp3`);
+let fillerBytes: Promise<ArrayBuffer[]> | null = null;
+let fillers: AudioBuffer[] = [];
+
+/** Downloads the thinking noises (call once when the app opens). */
+export function preloadFillers() {
+  fillerBytes ??= Promise.all(FILLERS.map((u) => fetch(u).then((r) => r.arrayBuffer()))).catch(() => []);
+}
+
+async function decodeFillers() {
+  if (!ctx || fillers.length || !fillerBytes) return;
+  const c = ctx;
+  const bytes = await fillerBytes;
+  fillers = (await Promise.all(bytes.map((b) => c.decodeAudioData(b.slice(0)).catch(() => null)))).filter((b): b is AudioBuffer => !!b);
+}
+
+/** Plays a random short "hmm, right…" right away. Does nothing if audio isn't ready. */
+export function playFiller() {
+  if (!webAudioReady() || !fillers.length) return;
+  if (speakerMode) setAudioSession("playback");
+  dbg("filler: playing");
+  void playBuffer(fillers[Math.floor(Math.random() * fillers.length)]);
 }
 
 // Some browsers (iOS Safari) play the audio but feed the analyser silence. If a clip has played for
@@ -160,7 +235,8 @@ let lastLevel = 0;
 
 /** Loudness of the voice playing now, 0..1. -1 means something is talking but we can't measure it. */
 export function voiceLevel(): number {
-  const playing = !!player && !player.paused && player.currentTime > 0;
+  const playing =
+    (!!player && !player.paused && player.currentTime > 0) || (sources.length > 0 && !!ctx && ctx.currentTime < scheduledUntil);
   let level = 0;
   if (playing && analyser) {
     analyser.getByteTimeDomainData(samples);
@@ -182,7 +258,7 @@ export const audioContext = () => ctx;
 /** For ?debug=1: what the meter sees. */
 export function audioDebug(): string {
   const playing = !!player && !player.paused;
-  return `ctx:${ctx?.state ?? "none"} meter:${analyser ? "on" : "off"} playing:${playing} t:${player?.currentTime.toFixed(1) ?? "-"} level:${lastLevel.toFixed(2)} peak:${clipPeak.toFixed(2)}`;
+  return `ctx:${ctx?.state ?? "none"} meter:${analyser ? "on" : "off"} clips:${sources.length} playing:${playing} t:${player?.currentTime.toFixed(1) ?? "-"} level:${lastLevel.toFixed(2)} peak:${clipPeak.toFixed(2)}`;
 }
 
 let unlocked = false;
@@ -192,6 +268,7 @@ export function unlockAudio() {
   try {
     ctx ??= new AudioContext();
     ctx.resume().catch(() => {}); // every tap: iOS can suspend it between answers
+    void decodeFillers();
   } catch {
     // no Web Audio: the talking head just flaps
   }
@@ -230,7 +307,7 @@ function playStream(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     const a = (player ??= new Audio());
     // Routed through a suspended context = silent. Let the browser voice take it instead.
-    if (analyser && ctx?.state !== "running") return resolve(false);
+    if (elementRouted && ctx?.state !== "running") return resolve(false);
     meter(a);
     clipStart = performance.now();
     clipPeak = 0;
@@ -328,4 +405,58 @@ declare global {
     SpeechRecognition?: unknown;
     webkitSpeechRecognition?: unknown;
   }
+}
+
+/**
+ * Speaks an answer that arrives in chunks: each chunk is fetched, decoded and played back to back
+ * through Web Audio as soon as it's ready. If Web Audio isn't running or a chunk fails, the chunks
+ * not yet played go through speak() (the <audio> element, then the browser voice) at the end.
+ */
+export function startAnswer(p: Persona) {
+  ctx?.resume().catch(() => {});
+  let fallback = !webAudioReady();
+  let cancelled = false;
+  const chunks: { text: string; sig: string; played: boolean }[] = [];
+  let chain: Promise<void> = Promise.resolve();
+  if (speakerMode) setAudioSession("playback");
+  cancelSpeech = () => {
+    cancelled = true;
+    stopClips();
+  };
+  dbg(`answer: ${fallback ? "element fallback" : "web audio"}`);
+
+  return {
+    say(text: string, sig: string) {
+      const chunk = { text, sig, played: false };
+      chunks.push(chunk);
+      if (fallback) return;
+      const c = ctx!;
+      const audio = fetch(`/api/speak?${new URLSearchParams({ text, persona: p.id, sig })}`)
+        .then((r) => (r.status === 200 ? r.arrayBuffer() : Promise.reject(new Error(`speak ${r.status}`))))
+        .then((b) => c.decodeAudioData(b));
+      chain = chain.then(async () => {
+        if (fallback || cancelled) return;
+        try {
+          const buf = await audio;
+          if (cancelled) return;
+          chunk.played = true;
+          void playBuffer(buf);
+        } catch (err) {
+          dbg(`answer: chunk failed ${err instanceof Error ? err.message : err}`);
+          fallback = true;
+        }
+      });
+    },
+    async end() {
+      try {
+        await chain;
+        if (!cancelled) await lastClip;
+        for (const c of chunks) if (!c.played && !cancelled) await speak(c.text, p, c.sig);
+      } finally {
+        if (cancelled) stopClips();
+        cancelSpeech = null;
+        if (speakerMode) setAudioSession("auto");
+      }
+    },
+  };
 }

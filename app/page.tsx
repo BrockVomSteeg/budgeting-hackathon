@@ -18,7 +18,7 @@ import { GORDON } from "@/lib/personas";
 import { recorderSupported, startRecording, transcribe } from "@/lib/record";
 import type { AskResponse, CategoryId } from "@/lib/types";
 import { LIMITS } from "@/lib/types";
-import { listen, primeAudio, setSpeakerMode, speak, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
+import { listen, playFiller, preloadFillers, primeAudio, setSpeakerMode, speak, startAnswer, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
 
 const GREETING = "Right. What are we buying? Tap me and ask, and it better not be RAW.";
 
@@ -71,6 +71,7 @@ function App() {
   // Warm the server so the first question doesn't wait for a cold start.
   useEffect(() => {
     for (const path of ["/api/ask", "/api/transcribe", "/api/speak"]) fetch(path, { cache: "no-store" }).catch(() => {});
+    preloadFillers();
   }, []);
 
   useEffect(() => {
@@ -95,24 +96,49 @@ function App() {
     setError("");
     setHeard(text);
     setStatus("thinking");
+    playFiller(); // "Right, let me have a look…" while Claude thinks
     const prior = messages.slice(-LIMITS.historyMax).map(({ role, text }) => ({ role, text }));
     setMessages((m) => [...m, { role: "user", text }]);
+    const voice = startAnswer(GORDON);
     try {
-      const r = await fetch("/api/ask", {
+      // Streamed: "say" chunks arrive as soon as each part of the line is written, then "done".
+      const r = await fetch("/api/ask?stream=1", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text, persona: GORDON.id, history: prior, budget: toBudget(ledger) }),
         signal: AbortSignal.timeout(20_000),
       });
       dbg(`ask: HTTP ${r.status}`);
-      if (!r.ok) throw new Error(r.status === 429 ? "Too fast. Breathe." : "Something broke.");
-      const a: AskResponse = await r.json();
-      setAnswer(a);
+      if (!r.ok || !r.body) throw new Error(r.status === 429 ? "Too fast. Breathe." : "Something broke.");
+      let a: AskResponse | null = null;
+      const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += value;
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const ev = JSON.parse(buf.slice(0, nl)) as { t: "say"; text: string; sig: string } | ({ t: "done" } & AskResponse);
+          buf = buf.slice(nl + 1);
+          if (ev.t === "say") {
+            dbg(`ask: say "${ev.text}"`);
+            voice.say(ev.text, ev.sig);
+            setStatus("speaking");
+          } else {
+            a = ev; // the full answer (the extra "t" field is harmless)
+          }
+        }
+      }
+      if (!a) throw new Error("Something broke.");
+      const done = a;
+      setAnswer(done);
       setHeard("");
-      setMessages((m) => [...m, { role: "assistant", text: a.line, verdict: a.verdict }]);
+      setMessages((m) => [...m, { role: "assistant", text: done.line, verdict: done.verdict }]);
       setStatus("speaking");
-      await speak(a.line, GORDON, a.sig);
+      await voice.end();
     } catch (e) {
+      stopSpeaking();
       dbg(`ask: failed ${e instanceof Error ? e.message : e}`);
       setError(e instanceof Error ? e.message : "Something broke.");
     }

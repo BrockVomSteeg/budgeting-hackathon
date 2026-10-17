@@ -69,7 +69,7 @@ export function ChefAvatar({ src, status, mood, label, onClick, disabled }: Prop
       glance();
       return () => clearTimeout(t);
     }
-    if (status !== "speaking") return;
+    if (status !== "speaking" && status !== "thinking") return; // thinking: the "hmm…" clip moves his mouth too
 
     let raf = 0;
     let last = 0;
