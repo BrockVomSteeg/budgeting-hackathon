@@ -34,14 +34,14 @@ function endOfSpeech(stream: MediaStream, onDone: () => void): () => void {
     for (const v of buf) sum += ((v - 128) / 128) ** 2;
     const rms = Math.sqrt(sum / buf.length);
     const now = performance.now();
-    if (now - t0 < 300) floor = Math.max(floor, rms); // room noise while the mic settles
+    if (now - t0 < 300) floor = Math.min(0.05, Math.max(floor, rms)); // capped: talking right after the tap isn't "room noise" // room noise while the mic settles
     const loud = rms > Math.max(0.02, floor * 2.5);
     if (loud) {
       if (!heard) dbg("recorder: speech started");
       heard = true;
       lastLoud = now;
     }
-    if ((heard && now - lastLoud > 800) || (!heard && now - t0 > 6000)) {
+    if ((heard && now - lastLoud > 1200) || (!heard && now - t0 > 6000)) {
       dbg(heard ? "recorder: speech ended, sending" : "recorder: no speech, sending");
       stop();
       onDone();

@@ -110,7 +110,7 @@ export async function askClaudeStreaming(
       else {
         const known = (CATEGORY_IDS as readonly string[]).includes(f.category as string);
         const category = known ? (f.category as (typeof CATEGORY_IDS)[number]) : guessCategory(text);
-        checked = (decide(b, amount, category).verdict === "no") === (f.verdict === "no") ? "ok" : "no";
+        checked = decide(b, amount, category).verdict === f.verdict ? "ok" : "no";
       }
     }
     if (checked !== "ok" || spoken.length) return;

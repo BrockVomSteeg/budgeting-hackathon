@@ -103,8 +103,8 @@ function streamed(budget: Budget, text: string, persona: PersonaId, history: Tur
           return finish({ ...mockAnswer(budget, text, persona), verdict: "info", line: said.join(" ") }, said);
         }
         // Nothing said yet: same as the non-streamed reply.
-        const a = await askClaude(budget, text, persona, history).catch(() => mockAnswer(budget, text, persona));
-        finish(a, []);
+        // A second full Claude call could outlast the phone's timeout, so answer from the templates now.
+        finish(mockAnswer(budget, text, persona), []);
       }
     },
   });

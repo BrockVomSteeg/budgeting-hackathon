@@ -414,7 +414,8 @@ declare global {
  */
 export function startAnswer(p: Persona) {
   ctx?.resume().catch(() => {});
-  let fallback = !webAudioReady();
+  // Decided per chunk: after auto-send there's no tap, and the context may need a moment to resume.
+  let fallback = !ctx;
   let cancelled = false;
   const chunks: { text: string; sig: string; played: boolean }[] = [];
   let chain: Promise<void> = Promise.resolve();
@@ -436,6 +437,14 @@ export function startAnswer(p: Persona) {
         .then((b) => c.decodeAudioData(b));
       chain = chain.then(async () => {
         if (fallback || cancelled) return;
+        if (c.state !== "running") {
+          await Promise.race([c.resume(), new Promise((r) => setTimeout(r, 600))]).catch(() => {});
+          if ((c.state as string) !== "running") { // re-read after the await
+            dbg(`answer: audio context ${c.state}, using element fallback`);
+            fallback = true;
+            return;
+          }
+        }
         try {
           const buf = await audio;
           if (cancelled) return;
@@ -450,7 +459,21 @@ export function startAnswer(p: Persona) {
     async end() {
       try {
         await chain;
-        if (!cancelled) await lastClip;
+        // Never hang on a clip whose onended won't fire (iOS can suspend the context mid-answer).
+        if (!cancelled) {
+          await Promise.race([
+            lastClip,
+            new Promise<void>((resolve) => {
+              const t0 = Date.now();
+              const iv = setInterval(() => {
+                if (cancelled || !ctx || ctx.state !== "running" || Date.now() - t0 > 30_000) {
+                  clearInterval(iv);
+                  resolve();
+                }
+              }, 250);
+            }),
+          ]);
+        }
         for (const c of chunks) if (!c.played && !cancelled) await speak(c.text, p, c.sig);
       } finally {
         if (cancelled) stopClips();

@@ -56,6 +56,20 @@ function App() {
   const [debugLines, setDebugLines] = useState<string[]>([]);
 
   // ?debug in the URL shows a live log of mic and audio events.
+  // Safety net for the stage: if Gordon is stuck listening, thinking or talking, reset so the next tap works.
+  useEffect(() => {
+    if (status === "idle") return;
+    const limit = { listening: 15_000, thinking: 35_000, speaking: 45_000 }[status];
+    const t = setTimeout(() => {
+      dbg(`watchdog: stuck in ${status} for ${limit / 1000}s, resetting`);
+      stopSpeaking();
+      if (status === "listening") stop.current();
+      setStatus("idle");
+      setError("Sorry, that got stuck. Tap Gordon to ask again.");
+    }, limit);
+    return () => clearTimeout(t);
+  }, [status]);
+
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("debug")) return;
     onDebug((line) => setDebugLines((l) => [...l, line].slice(-25)));
@@ -106,7 +120,7 @@ function App() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text, persona: GORDON.id, history: prior, budget: toBudget(ledger) }),
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(30_000),
       });
       dbg(`ask: HTTP ${r.status}`);
       if (!r.ok || !r.body) throw new Error(r.status === 429 ? "Too fast. Breathe." : "Something broke.");
