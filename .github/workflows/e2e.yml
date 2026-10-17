@@ -1,0 +1,64 @@
+name: E2E voice test
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Production URL
+        default: https://can-i-afford-it-ashen.vercel.app
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      U: ${{ inputs.url }}
+    steps:
+      - name: Spoken question as a fake mic input
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng sox >/dev/null
+          espeak-ng -s 140 -w raw.wav "Can I afford a four hundred dollar jacket?"
+          sox raw.wav -r 48000 -c 1 -b 16 q.wav pad 0.5 3
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null
+          npm i -s playwright@1.48.2
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Tap mic, speak, send (twice), as Gordon
+        run: |
+          cat > e2e.mjs <<'JS'
+          import { chromium } from "playwright";
+          const b = await chromium.launch({
+            args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-audio-capture=q.wav"],
+          });
+          const ctx = await b.newContext({ permissions: ["microphone"], viewport: { width: 390, height: 844 } });
+          const page = await ctx.newPage();
+          page.on("pageerror", (e) => console.log("PAGE ERROR:", e.message));
+          page.on("response", (r) => r.url().includes("/api/") && console.log("api:", r.status(), new URL(r.url()).pathname));
+          await page.goto(process.env.U + "/?debug");
+          await page.getByText("Gordon Ramsay").click();
+          const mic = page.locator("button.mic");
+          for (let i = 1; i <= 2; i++) {
+            console.log(`=== attempt ${i}`);
+            await mic.click();
+            await page.waitForTimeout(5000);
+            await mic.click();
+            await page
+              .waitForFunction(() => document.querySelector("button.mic")?.textContent?.includes("Tap & ask"), null, { timeout: 45000 })
+              .catch(() => console.log("TIMEOUT: never returned to idle"));
+            for (const sel of [".heard", ".error", ".verdict"]) {
+              const t = await page.locator(sel).first().innerText({ timeout: 500 }).catch(() => null);
+              console.log(`${sel}:`, t);
+            }
+            await page.screenshot({ path: `attempt${i}.png`, fullPage: true });
+          }
+          console.log("=== debug log\n" + (await page.locator("pre").last().innerText().catch(() => "(none)")));
+          await b.close();
+          JS
+          node e2e.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: attempt*.png
