@@ -94,6 +94,13 @@ const HYPES: Record<PersonaId, (i: string, l: string) => string> = {
   bestie: (i, l) => `Babe, yes! Get ${i}. You still have ${l}. We love a financially stable queen.`,
 };
 
+const WARNS: Record<PersonaId, (i: string, l: string) => string> = {
+  sergeant: (i, l) => `Proceed with caution, recruit. ${i} leaves you ${l}. Not one dollar more!`,
+  grandma: (i, l) => `Well, sweetie, you can get ${i}, but that leaves only ${l}. Pack a lunch.`,
+  chef: (i, l) => `${i}? Fine, but that leaves ${l}. One more order and this kitchen burns down!`,
+  bestie: (i, l) => `Okay babe, ${i} works, but you'd only have ${l} left. Living on the edge.`,
+};
+
 export function mockAnswer(b: Budget, text: string, persona: PersonaId): AskResponse {
   const amount = parseAmount(text);
   if (amount === null) {
@@ -112,6 +119,8 @@ export function mockAnswer(b: Budget, text: string, persona: PersonaId): AskResp
   const { verdict, remainingAfter } = decide(b, amount, category);
   const left = usd(categoryLeft(b, category));
   const line =
-    verdict === "no" ? pick(ROASTS[persona])(item, left) : HYPES[persona](item, usd(remainingAfter));
+    verdict === "no"
+      ? pick(ROASTS[persona])(item, left)
+      : (verdict === "tight" ? WARNS : HYPES)[persona](item, usd(remainingAfter));
   return { verdict, item, amount, category, remainingAfter, line, source: "mock" };
 }

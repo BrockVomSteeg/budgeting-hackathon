@@ -41,8 +41,9 @@ export async function askClaude(
   const out = res.parsed_output;
   if (res.stop_reason === "refusal" || !out) return mockAnswer(b, text, persona);
 
+  // No amount means no math, so the model doesn't get to issue a yes/no verdict.
   if (out.amount === null || out.amount <= 0 || out.category === null) {
-    return { ...out, amount: null, category: out.category, remainingAfter: null, source: "claude" };
+    return { ...out, verdict: "info", amount: null, remainingAfter: null, source: "claude" };
   }
 
   // Code owns the math. If the model's verdict disagrees, trust the numbers.
