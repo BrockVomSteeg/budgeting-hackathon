@@ -55,6 +55,7 @@ export interface AskResponse {
   verdict: Verdict;
   item: string | null;
   amount: number | null;
+  priceEstimated: boolean;
   category: CategoryId | null;
   remainingAfter: number | null;
   line: string;

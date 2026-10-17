@@ -18,8 +18,15 @@ test("tight warns with the real amount left", () => {
   assert.match(a.line, /\$10\b/);
   assert.doesNotMatch(a.line, /Yes, chef/);
 });
+test("off-topic questions get a redirect, not budget data", () => {
+  const a = mockAnswer(demoBudget, "how am I doing this month?", "chef");
+  assert.equal(a.verdict, "info");
+  assert.match(a.line, /afford/i);
+  assert.doesNotMatch(a.line, /\$/);
+});
 test("no cites the category money left", () => {
   const a = mockAnswer(demoBudget, "can I afford a $400 jacket?", "chef");
   assert.equal(a.verdict, "no");
   assert.match(a.line, /\$90\b/);
+  assert.equal(a.priceEstimated, false);
 });

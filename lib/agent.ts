@@ -22,9 +22,10 @@ export function checkAffordability(
     return { answer: null, text: JSON.stringify({ error: "Ask the user how much it costs." }) };
   }
   const category = isCategory(params.category) ? params.category : guessCategory(item);
+  const priceEstimated = params.price_estimated === true;
   const { verdict, remainingAfter } = decide(b, amount, category);
   return {
-    answer: { verdict, item, amount, category, remainingAfter, line: "", source: "claude" },
+    answer: { verdict, item, amount, priceEstimated, category, remainingAfter, line: "", source: "claude" },
     text: JSON.stringify({
       verdict,
       item,

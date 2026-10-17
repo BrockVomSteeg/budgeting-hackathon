@@ -14,8 +14,7 @@
 - "Can I afford a $400 jacket?" → ❌ big roast 🔥
 - "Can I afford a Chipotle burrito?" → guesses about $12 → ✅
 - "Can I afford a flight to Tokyo?" / "a dozen eggs?" → price guess + verdict
-- "How am I doing this month?" → budget summary in character
-- Off-topic ("tell me a joke") → short in-character answer, steers back to money
+- Off-topic ("How am I doing this month?", "tell me a joke") → Gordon won't answer; he says he only does "can you afford it?" and asks what you're buying
 
 ⚠️ Gordon swears, even on a "yes". Warn the hosts.
 

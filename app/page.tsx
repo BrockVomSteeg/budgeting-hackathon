@@ -211,7 +211,9 @@ function App() {
         {showBubble && (
           <button className={`bubble ${error ? "err" : ""} ${status === "thinking" ? "typing" : ""}`} onClick={() => setOpen({ kind: "chat" })} aria-live="polite">
             {answer && status === "idle" && !error && answer.verdict !== "info" && (
-              <span className={`verdict v-${answer.verdict}`}>{{ yes: "YES", no: "NOPE", tight: "TIGHT" }[answer.verdict]}</span>
+              <span className={`verdict v-${answer.verdict}`}>{{ yes: "YES", no: "NOPE", tight: "TIGHT" }[answer.verdict]}
+                {answer.priceEstimated && answer.amount !== null && ` · $${answer.amount.toLocaleString("en-US")} (est.)`}
+              </span>
             )}
             <span className="bubble-text">{status === "listening" && heard ? `“${bubble}”` : bubble}</span>
           </button>

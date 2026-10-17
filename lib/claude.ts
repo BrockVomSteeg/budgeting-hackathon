@@ -2,20 +2,21 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { AskResponse, Budget, PersonaId, Turn } from "./types";
-import { CATEGORY_IDS } from "./types";
-import { categoryLeft, decide } from "./budget";
-import { personas } from "./personas";
-import { systemPrompt, userPrompt } from "./prompt";
-import { guessCategory, mockAnswer, mockForPurchase } from "./mock";
+import { CATEGORY_IDS } from "./types.ts";
+import { categoryLeft, decide } from "./budget.ts";
+import { personas } from "./personas.ts";
+import { systemPrompt, userPrompt } from "./prompt.ts";
+import { guessCategory, mockAnswer, mockForPurchase } from "./mock.ts";
 
 // Haiku: cheapest + fastest for short spoken replies. Override with ANTHROPIC_MODEL.
 export const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
 
 const Reply = z.object({
-  // "money": spending, budgets, prices of anything (food, restaurants, groceries, stores, travel, products), saving, bills.
-  topic: z.enum(["money", "off_topic"]),
+  // "afford": "can I afford X?", including bare price questions ("how much is a Domino's pizza?"). Everything else is off_topic.
+  topic: z.enum(["afford", "off_topic"]),
   item: z.string().nullable(),
   amount: z.number().nullable(),
+  priceEstimated: z.boolean(),
   category: z.enum(CATEGORY_IDS).nullable(),
   verdict: z.enum(["yes", "no", "tight", "info"]),
   line: z.string(),
@@ -32,35 +33,38 @@ const getClient = () => (client ??= new Anthropic({ timeout: 10_000, maxRetries:
 
 export const hasClaude = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
+/** One Claude call; `note` is appended to the user message. Tests pass a fake. */
+export type Call = (note?: string) => Promise<{ stop_reason: string | null; parsed_output: z.infer<typeof Reply> | null }>;
+
 export async function askClaude(
   b: Budget,
   text: string,
   persona: PersonaId,
   history: Turn[],
-): Promise<AskResponse> {
-  const call = (note = "") =>
+  call: Call = (note = "") =>
     getClient().messages.parse({
       model: MODEL,
       max_tokens: 1024,
       output_config: { effort: "low", format: zodOutputFormat(Reply) },
       system: systemPrompt(personas[persona]),
       messages: [{ role: "user", content: userPrompt(b, text, history) + note }],
-    });
+    }),
+): Promise<AskResponse> {
   const res = await call();
   const out = res.parsed_output;
   if (res.stop_reason === "refusal" || !out) return mockAnswer(b, text, persona);
 
   // Scope guard: off-topic questions only ever get the in-character redirect, never a verdict or math.
   if (out.topic === "off_topic") {
-    return { item: null, amount: null, category: null, verdict: "info", remainingAfter: null, line: out.line, source: "claude" };
+    return { item: null, amount: null, priceEstimated: false, category: null, verdict: "info", remainingAfter: null, line: out.line, source: "claude" };
   }
 
-  // No amount means no math, so the model doesn't get to issue a yes/no verdict.
+  // No amount (not even an estimate) means no math, so the model doesn't get to issue a yes/no verdict.
   if (out.amount === null || out.amount <= 0) {
-    return { ...strip(out), verdict: "info", amount: null, remainingAfter: null, source: "claude" };
+    return { ...strip(out), verdict: "info", amount: null, priceEstimated: false, remainingAfter: null, source: "claude" };
   }
 
-  // Code owns the math. If the model's verdict disagrees, trust the numbers.
+  // Code owns the math, estimated prices included. If the model's verdict disagrees, trust the numbers.
   const category = out.category ?? guessCategory(text);
   const truth = decide(b, out.amount, category);
   const agrees = (v: string) => (truth.verdict === "no") === (v === "no");
@@ -72,7 +76,7 @@ export async function askClaude(
   const note = `\n\nVerified by our code for ${out.item ?? "this"} at $${out.amount} (${category}): verdict "${truth.verdict}", $${categoryLeft(b, category)} left in ${category}, $${truth.remainingAfter} after. Use exactly this verdict and these numbers.`;
   const again = (await call(note).catch(() => null))?.parsed_output;
   if (again && agrees(again.verdict)) {
-    return { ...strip(again), item: again.item ?? out.item, amount: out.amount, category, verdict: truth.verdict, remainingAfter: truth.remainingAfter, source: "claude" };
+    return { ...strip(again), item: again.item ?? out.item, amount: out.amount, priceEstimated: out.priceEstimated, category, verdict: truth.verdict, remainingAfter: truth.remainingAfter, source: "claude" };
   }
-  return mockForPurchase(b, persona, out.item ?? "that", out.amount, category);
+  return mockForPurchase(b, persona, out.item ?? "that", out.amount, category, out.priceEstimated);
 }

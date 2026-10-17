@@ -1,5 +1,5 @@
 import type { AskResponse, Budget, CategoryId, PersonaId } from "./types";
-import { categoryLeft, decide, safeToSpend } from "./budget.ts";
+import { categoryLeft, decide } from "./budget.ts";
 
 const KEYWORDS: Record<CategoryId, string[]> = {
   food: ["coffee", "latte", "lunch", "dinner", "food", "pizza", "burrito", "sushi", "boba", "grocer", "taco"],
@@ -83,6 +83,11 @@ const WARNS: Record<PersonaId, (i: string, l: string) => string> = {
   chef: (i, l) => `${i}? Fine, but that leaves ${l}. One more order and this kitchen burns down!`,
 };
 
+// No price means it's either off-topic or missing the amount: redirect, never answer general questions.
+const REDIRECTS: Record<PersonaId, string> = {
+  chef: "Did I ask for small talk? No! I answer one thing: can you afford it. What are you buying, and how much, you donkey?",
+};
+
 export function mockAnswer(b: Budget, text: string, persona: PersonaId): AskResponse {
   const amount = parseAmount(text);
   if (amount === null) {
@@ -90,9 +95,10 @@ export function mockAnswer(b: Budget, text: string, persona: PersonaId): AskResp
       verdict: "info",
       item: null,
       amount: null,
+      priceEstimated: false,
       category: null,
       remainingAfter: null,
-      line: `You can safely spend ${usd(safeToSpend(b))} until payday. Ask me "can I afford" plus a price.`,
+      line: REDIRECTS[persona],
       source: "mock",
     };
   }
@@ -106,6 +112,7 @@ export function mockForPurchase(
   item: string,
   amount: number,
   category: CategoryId,
+  priceEstimated = false,
 ): AskResponse {
   const { verdict, remainingAfter } = decide(b, amount, category);
   const left = usd(categoryLeft(b, category));
@@ -113,5 +120,5 @@ export function mockForPurchase(
     verdict === "no"
       ? pick(ROASTS[persona])(item, left)
       : (verdict === "tight" ? WARNS : HYPES)[persona](item, usd(remainingAfter));
-  return { verdict, item, amount, category, remainingAfter, line, source: "mock" };
+  return { verdict, item, amount, priceEstimated, category, remainingAfter, line, source: "mock" };
 }

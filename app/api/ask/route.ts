@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
   const care = distressReply(text);
   if (care) {
-    const a: AskResponse = { verdict: "info", item: null, amount: null, category: null, remainingAfter: null, line: care, source: "mock" };
+    const a: AskResponse = { verdict: "info", item: null, amount: null, priceEstimated: false, category: null, remainingAfter: null, line: care, source: "mock" };
     return reply(a, persona);
   }
 

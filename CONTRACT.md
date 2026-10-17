@@ -36,6 +36,7 @@ interface Turn { role: "user" | "assistant"; text: string }
   verdict: "yes" | "no" | "tight" | "info",
   item: string | null,
   amount: number | null,
+  priceEstimated: boolean,       // true when the user gave no price and Claude estimated it (card shows "(est.)")
   category: CategoryId | null,
   remainingAfter: number | null, // category left after purchase
   line: string,                  // what gets spoken (≤60 words)
@@ -60,7 +61,7 @@ interface Turn { role: "user" | "assistant"; text: string }
 
 ## Client tool `check_affordability` (ElevenLabs agent → browser) 🧮
 ```ts
-// in:  { item: string, amount: number, category: CategoryId }
+// in:  { item: string, amount: number, category: CategoryId, price_estimated?: boolean }
 // out: JSON string { verdict, item, amount, category, category_left, left_after, safe_to_spend_overall }
 ```
 
