@@ -7,7 +7,7 @@ import { VerdictCard } from "@/components/VerdictCard";
 import { personas } from "@/lib/personas";
 import type { AskResponse, PersonaId, Turn } from "@/lib/types";
 import { LIMITS } from "@/lib/types";
-import { listen, speak, sttSupported, unlockAudio } from "@/lib/voice";
+import { listen, speak, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
 
@@ -66,6 +66,7 @@ export default function Home() {
   function onMic() {
     unlockAudio();
     if (status === "listening") return stop.current();
+    if (status === "speaking") return stopSpeaking();
     if (status !== "idle") return;
     if (!sttSupported()) return setError("Voice not supported here. Type below.");
     setHeard("");
@@ -88,7 +89,7 @@ export default function Home() {
   // The live ElevenLabs agent can only speak ElevenLabs voices, so Fish personas run in tap mode.
   const tapOnly = Boolean(personas[persona].fishVoiceId);
   const view = tapOnly ? "tap" : mode;
-  const micLabel = { idle: "Tap & ask", listening: "Listening… tap to send", thinking: "Thinking…", speaking: "Talking…" }[status];
+  const micLabel = { idle: "Tap & ask", listening: "Listening… tap to send", thinking: "Thinking…", speaking: "Talking… tap to skip" }[status];
 
   return (
     <main className="app">
@@ -112,7 +113,7 @@ export default function Home() {
       <button
         className={`mic mic-${status}`}
         onClick={onMic}
-        disabled={status === "thinking" || status === "speaking"}
+        disabled={status === "thinking"}
         aria-label={micLabel}
       >
         <span className="mic-icon">{status === "listening" ? "👂" : status === "thinking" ? "🧠" : status === "speaking" ? "🔊" : "🎙️"}</span>
