@@ -20,19 +20,11 @@ npm run check   # lint + typecheck + tests + build
 ## How it works
 
 ### User Input Flow
-Users can provide their query in two ways:
-
-1. **Description with Amount**: "A new PlayStation 5 that costs $500"
-   - The app extracts the amount and checks it against your budget
-
-2. **Item Name Only**: "A new laptop"
-   - The app searches the internet via OpenAI API to estimate the cost
-   - Then checks the estimated cost against your budget
-
-The app maintains demo budget buckets (no database needed) that track spending across categories. Based on the budget check, it returns a funny response with buying advice and context about how much over/under budget you'd be.
+Ask with an amount: *"Can I afford a $400 jacket?"* or *"a four hundred dollar jacket"*.
+The app checks it against demo budget buckets in `data/budget.json` (no database) and replies yes, tight, or no. A no gets a fresh roast in the character's voice. No amount? It asks how much.
 
 ### Technical Flow
-`mic (Web Speech API)` → `POST /api/ask` → Claude (structured JSON) → **code re-checks the math** (`lib/budget.ts`) → `POST /api/speak` → ElevenLabs → audio. With no keys, both routes fall back to mock mode and the browser voice.
+`mic (Web Speech API)` → `POST /api/ask` → Claude Haiku (structured JSON) → **code re-checks the math** (`lib/budget.ts`) → `POST /api/speak` → Fish Audio (then ElevenLabs, then browser voice) → audio. No keys = mock roasts + browser voice. Optional: ElevenLabs live call (`AGENT_SETUP.md`). Check config at `/api/health`.
 
 ## 🔐 Security
 - Keys only in Vercel env vars or `.env.local` (gitignored). Never `NEXT_PUBLIC_*`.

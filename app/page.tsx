@@ -18,7 +18,7 @@ export default function Home() {
   const [typed, setTyped] = useState("");
   const [answer, setAnswer] = useState<AskResponse | null>(null);
   const [error, setError] = useState("");
-  const [mode, setMode] = useState<"live" | "tap">("live");
+  const [mode, setMode] = useState<"live" | "tap">("tap");
   const history = useRef<Turn[]>([]);
   const stop = useRef<() => void>(() => {});
 
@@ -123,7 +123,7 @@ export default function Home() {
       </form>
 
       <button className="mode-switch" onClick={() => setMode(mode === "live" ? "tap" : "live")}>
-        {mode === "live" ? "Backup: tap-to-ask mode" : "Back to live call"}
+        {mode === "live" ? "Back to tap-to-ask" : "Try live call (beta)"}
       </button>
 
       {answer && mode === "tap" && <p className="source">{answer.source === "claude" ? "⚡ live AI" : "🧪 mock mode"}</p>}
