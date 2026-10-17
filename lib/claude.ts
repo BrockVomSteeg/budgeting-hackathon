@@ -32,7 +32,7 @@ export async function askClaude(
 ): Promise<AskResponse> {
   const res = await getClient().messages.parse({
     model: MODEL,
-    max_tokens: 2048,
+    max_tokens: 1024,
     output_config: { effort: "low", format: zodOutputFormat(Reply) },
     system: systemPrompt(personas[persona]),
     messages: [{ role: "user", content: userPrompt(b, text, history) }],

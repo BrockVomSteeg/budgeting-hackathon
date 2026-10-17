@@ -1,5 +1,6 @@
 import { isPersonaId, personas } from "@/lib/personas";
 import { rateLimited } from "@/lib/ratelimit";
+import { verifyLine } from "@/lib/sign";
 import { LIMITS } from "@/lib/types";
 import type { PersonaId } from "@/lib/types";
 
@@ -62,7 +63,7 @@ export async function GET(req: Request) {
   const q = new URL(req.url).searchParams;
   const text = (q.get("text") ?? "").slice(0, LIMITS.speakMax);
   const persona = q.get("persona");
-  if (!text || !isPersonaId(persona)) return noAudio();
+  if (!text || !isPersonaId(persona) || !verifyLine(persona, text, q.get("sig"))) return noAudio();
 
   try {
     const voice = fishVoice(persona);

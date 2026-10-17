@@ -52,6 +52,8 @@ export interface AskResponse {
   remainingAfter: number | null;
   line: string;
   source: "claude" | "mock";
+  /** HMAC from /api/ask; /api/speak only voices signed lines. */
+  sig?: string;
 }
 
 export const LIMITS = { textMax: 300, speakMax: 400, historyMax: 6 } as const;

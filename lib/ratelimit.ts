@@ -8,6 +8,8 @@ export function rateLimited(req: Request, max = 60, windowMs = 60_000): boolean 
   const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
   recent.push(now);
   hits.set(key, recent);
-  if (hits.size > 5000) hits.clear();
+  if (hits.size > 5000) {
+    for (const [k, ts] of hits) if (now - ts[ts.length - 1] > windowMs) hits.delete(k);
+  }
   return recent.length > max;
 }

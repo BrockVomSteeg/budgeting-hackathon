@@ -48,7 +48,7 @@ export default function Home() {
         { role: "assistant" as const, text: a.line },
       ].slice(-LIMITS.historyMax);
       setStatus("speaking");
-      await speak(a.line, personas[persona]);
+      await speak(a.line, personas[persona], a.sig);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something broke.");
     }
@@ -59,7 +59,7 @@ export default function Home() {
     if (!answer?.line || status !== "idle") return;
     unlockAudio();
     setStatus("speaking");
-    await speak(answer.line, personas[spokenBy]);
+    await speak(answer.line, personas[spokenBy], answer.sig);
     setStatus("idle");
   }
 

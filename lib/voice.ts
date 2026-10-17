@@ -171,9 +171,9 @@ function browserSpeak(text: string, p: Persona): Promise<void> {
 }
 
 /** Fish Audio or ElevenLabs streamed via our server; falls back to the browser voice. */
-export async function speak(text: string, p: Persona): Promise<void> {
+export async function speak(text: string, p: Persona, sig?: string): Promise<void> {
   setAudioSession("playback");
-  const url = `/api/speak?${new URLSearchParams({ text, persona: p.id })}`;
+  const url = `/api/speak?${new URLSearchParams({ text, persona: p.id, sig: sig ?? "" })}`;
   if (await playStream(url)) return;
   await withTimeout(browserSpeak(text, p));
 }
