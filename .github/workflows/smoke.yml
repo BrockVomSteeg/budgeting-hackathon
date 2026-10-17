@@ -46,6 +46,13 @@ jobs:
             curl -s -o /dev/null -w "speak $p signed: %{http_code} %{content_type} %{size_download} bytes %{time_starttransfer}s\n" "$U/api/speak?$q"
           done
           curl -s -o /dev/null -w "speak unsigned (must be 204): %{http_code}\n" "$U/api/speak?text=hello&persona=chef"
+      - name: Speech-to-text round trip (/api/transcribe)
+        run: |
+          q=$(curl -s "$U/api/ask" -H 'content-type: application/json' -d '{"text":"can I afford a $6 coffee?","persona":"chef","history":[]}' \
+            | python3 -c 'import sys,json,urllib.parse as u;d=json.load(sys.stdin);print(u.urlencode({"text":d["line"],"persona":"chef","sig":d.get("sig","")}))')
+          curl -s -o voice.mp3 "$U/api/speak?$q"
+          echo "voice bytes: $(wc -c < voice.mp3)"
+          curl -s -w "\ntranscribe %{http_code} in %{time_total}s\n" "$U/api/transcribe" -H 'content-type: audio/mpeg' --data-binary @voice.mp3
       - name: Live agent token (/api/agent-token)
         run: curl -s -o /dev/null -w "agent-token %{http_code}\n" "$U/api/agent-token"
       - name: Security headers

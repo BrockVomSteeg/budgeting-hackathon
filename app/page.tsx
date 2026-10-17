@@ -9,6 +9,7 @@ import { demoBudget } from "@/data/budget";
 import { personas } from "@/lib/personas";
 import type { AskResponse, PersonaId, Turn } from "@/lib/types";
 import { LIMITS } from "@/lib/types";
+import { recorderSupported, startRecording, transcribe } from "@/lib/record";
 import { listen, speak, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
 
 type Status = "idle" | "listening" | "thinking" | "speaking";
@@ -24,6 +25,7 @@ export default function Home() {
   const [mode, setMode] = useState<"live" | "tap">("tap");
   const history = useRef<Turn[]>([]);
   const stop = useRef<() => void>(() => {});
+  const serverStt = useRef(true); // flips off if /api/transcribe says it isn't configured
 
   async function ask(text: string) {
     if (!text) {
@@ -70,13 +72,46 @@ export default function Home() {
     if (status === "listening") return stop.current();
     if (status === "speaking") return stopSpeaking();
     if (status !== "idle") return;
-    if (!sttSupported()) return setError("Voice not supported here. Type below.");
     setHeard("");
+    setError("");
+    if (serverStt.current && recorderSupported()) return void recordQuestion();
+    if (!sttSupported()) return setError("Voice not supported here. Type below.");
     setStatus("listening");
     stop.current = listen(setHeard, ask, (e) => {
       setError(e);
       setStatus("idle");
     });
+  }
+
+  // Record -> server speech-to-text -> ask. Tap again (or 10s) to send.
+  async function recordQuestion() {
+    setStatus("listening");
+    let sent = false;
+    let finish: (() => Promise<Blob>) | null = null;
+    const send = async () => {
+      if (sent || !finish) return;
+      sent = true;
+      setStatus("thinking");
+      try {
+        const text = await transcribe(await finish());
+        if (text === null) {
+          serverStt.current = false;
+          setError("Tap the mic again.");
+          return setStatus("idle");
+        }
+        await ask(text);
+      } catch {
+        setError("Didn't catch that. Try again, or type below.");
+        setStatus("idle");
+      }
+    };
+    stop.current = () => void send();
+    try {
+      finish = await startRecording(() => void send());
+    } catch {
+      setError("Mic blocked. Allow microphone access, or type below.");
+      setStatus("idle");
+    }
   }
 
   function onSubmit(e: React.FormEvent) {
