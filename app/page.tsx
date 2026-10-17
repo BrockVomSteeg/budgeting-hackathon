@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BudgetMeters } from "@/components/BudgetMeters";
 import { LiveCall } from "@/components/LiveCall";
 import { PersonaPicker } from "@/components/PersonaPicker";
@@ -9,6 +9,7 @@ import { demoBudget } from "@/data/budget";
 import { personas } from "@/lib/personas";
 import type { AskResponse, PersonaId, Turn } from "@/lib/types";
 import { LIMITS } from "@/lib/types";
+import { dbg, onDebug } from "@/lib/debug";
 import { recorderSupported, startRecording, transcribe } from "@/lib/record";
 import { listen, speak, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
 
@@ -26,8 +27,18 @@ export default function Home() {
   const history = useRef<Turn[]>([]);
   const stop = useRef<() => void>(() => {});
   const serverStt = useRef(true); // flips off if /api/transcribe says it isn't configured
+  const [debugLines, setDebugLines] = useState<string[]>([]);
+
+  // ?debug in the URL shows a live log of mic and audio events under the button.
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("debug")) return;
+    onDebug((line) => setDebugLines((l) => [...l, line].slice(-25)));
+    dbg(`debug on: ${navigator.userAgent}`);
+    return () => onDebug(null);
+  }, []);
 
   async function ask(text: string) {
+    dbg(`ask: "${text}"`);
     if (!text) {
       setError("Didn't catch that. Try again.");
       return setStatus("idle");
@@ -42,6 +53,7 @@ export default function Home() {
         body: JSON.stringify({ text, persona, history: history.current }),
         signal: AbortSignal.timeout(20_000),
       });
+      dbg(`ask: HTTP ${r.status}`);
       if (!r.ok) throw new Error(r.status === 429 ? "Too fast. Breathe." : "Something broke.");
       const a: AskResponse = await r.json();
       setAnswer(a);
@@ -54,8 +66,10 @@ export default function Home() {
       setStatus("speaking");
       await speak(a.line, personas[persona], a.sig);
     } catch (e) {
+      dbg(`ask: failed ${e instanceof Error ? e.message : e}`);
       setError(e instanceof Error ? e.message : "Something broke.");
     }
+    dbg("ask: back to idle");
     setStatus("idle");
   }
 
@@ -68,6 +82,7 @@ export default function Home() {
   }
 
   function onMic() {
+    dbg(`tap: status=${status}`);
     unlockAudio();
     if (status === "listening") return stop.current();
     if (status === "speaking") return stopSpeaking();
@@ -75,6 +90,7 @@ export default function Home() {
     setHeard("");
     setError("");
     if (serverStt.current && recorderSupported()) return void recordQuestion();
+    dbg(`using built-in recognizer (supported=${sttSupported()})`);
     if (!sttSupported()) return setError("Voice not supported here. Type below.");
     setStatus("listening");
     stop.current = listen(setHeard, ask, (e) => {
@@ -95,12 +111,14 @@ export default function Home() {
       try {
         const text = await transcribe(await finish());
         if (text === null) {
+          dbg("server speech-to-text not configured, switching to built-in recognizer");
           serverStt.current = false;
           setError("Tap the mic again.");
           return setStatus("idle");
         }
         await ask(text);
-      } catch {
+      } catch (e) {
+        dbg(`record: failed ${e instanceof Error ? `${e.name} ${e.message}` : e}`);
         setError("Didn't catch that. Try again, or type below.");
         setStatus("idle");
       }
@@ -108,7 +126,8 @@ export default function Home() {
     stop.current = () => void send();
     try {
       finish = await startRecording(() => void send());
-    } catch {
+    } catch (e) {
+      dbg(`recorder: mic failed ${e instanceof Error ? `${e.name} ${e.message}` : e}`);
       setError("Mic blocked. Allow microphone access, or type below.");
       setStatus("idle");
     }
@@ -167,6 +186,11 @@ export default function Home() {
 
       {heard && <p className="heard">“{heard}”</p>}
       {error && <p className="error" role="alert">{error}</p>}
+      {debugLines.length > 0 && (
+        <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", opacity: 0.8 }}>
+          {debugLines.join("\n")}
+        </pre>
+      )}
       {answer && (
         <VerdictCard
           answer={answer}

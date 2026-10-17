@@ -79,17 +79,19 @@ function ask() {
 test("a second question works after a spoken answer", async () => {
   unlockAudio();
   const first = ask();
+  assert.equal(synth.cancelled, 0, "starting the mic doesn't cut off the first tap's unlock");
   first.rec.say("can I afford a $5 coffee");
   assert.deepEqual(first.calls.done, ["can I afford a $5 coffee"]);
 
-  await speak("Permission granted, recruit!", persona);
+  const talking = speak("Permission granted, recruit!", persona);
   assert.equal(session.type, "playback");
+  await talking;
+  assert.equal(session.type, "auto", "the mic is usable again once the answer ends");
 
   unlockAudio(); // second tap
   const second = ask();
   assert.equal(synth.spoken, 1, "the silent unlock utterance only plays on the first tap");
-  assert.equal(session.type, "play-and-record", "the mic is usable again");
-  assert.ok(synth.cancelled > 0, "leftover speech is cleared before listening");
+  assert.equal(session.type, "auto", "listening doesn't flip the audio session");
   assert.ok(second.rec.started);
   second.rec.say("what about a $400 jacket");
   assert.deepEqual(second.calls.done, ["what about a $400 jacket"]);

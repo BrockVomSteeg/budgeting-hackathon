@@ -2,28 +2,40 @@
 
 // Records the question ourselves and transcribes it on the server (Fish Audio).
 // More reliable than Safari's built-in speech recognition, which often hears nothing.
+import { dbg } from "./debug.ts";
 
 export const recorderSupported = () =>
   typeof window !== "undefined" && "MediaRecorder" in window && !!navigator.mediaDevices?.getUserMedia;
 
 /** Starts recording. Returns finish(), which stops and resolves the audio. Calls onCap after maxMs. */
 export async function startRecording(onCap: () => void, maxMs = 10_000): Promise<() => Promise<Blob>> {
+  dbg("recorder: asking for mic");
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true },
   });
+  for (const t of stream.getAudioTracks()) {
+    dbg(`recorder: mic track ${t.readyState} muted=${t.muted} enabled=${t.enabled}`);
+    t.onmute = () => dbg("recorder: mic track MUTED");
+    t.onunmute = () => dbg("recorder: mic track unmuted");
+    t.onended = () => dbg("recorder: mic track ended");
+  }
   const mime = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find((t) => MediaRecorder.isTypeSupported(t));
   const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => {
+    dbg(`recorder: chunk ${e.data.size} bytes`);
     if (e.data.size) chunks.push(e.data);
   };
+  rec.onerror = () => dbg("recorder: error");
   const stopped = new Promise<Blob>((resolve) => {
     rec.onstop = () => {
+      dbg(`recorder: stopped, ${chunks.length} chunks`);
       stream.getTracks().forEach((t) => t.stop());
       resolve(new Blob(chunks, { type: rec.mimeType || mime || "audio/mp4" }));
     };
   });
   rec.start();
+  dbg(`recorder: started ${rec.mimeType || mime || "default type"}`);
   const cap = setTimeout(onCap, maxMs);
   return () => {
     clearTimeout(cap);
@@ -34,14 +46,17 @@ export async function startRecording(onCap: () => void, maxMs = 10_000): Promise
 
 /** Text from the server, "" if nothing was heard, null if server speech-to-text isn't configured. */
 export async function transcribe(blob: Blob): Promise<string | null> {
+  dbg(`transcribe: sending ${blob.size} bytes ${blob.type}`);
   const r = await fetch("/api/transcribe", {
     method: "POST",
     headers: { "content-type": blob.type || "audio/mp4" },
     body: blob,
     signal: AbortSignal.timeout(15_000),
   });
+  dbg(`transcribe: HTTP ${r.status}`);
   if (r.status === 501) return null;
   if (!r.ok) return "";
   const { text } = (await r.json()) as { text?: unknown };
+  dbg(`transcribe: text "${typeof text === "string" ? text : ""}"`);
   return typeof text === "string" ? text.trim() : "";
 }

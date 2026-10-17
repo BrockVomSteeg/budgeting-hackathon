@@ -1,6 +1,7 @@
 "use client";
 
 import type { Persona } from "./types";
+import { dbg } from "./debug.ts";
 
 // Minimal Web Speech API typings (not in lib.dom for all TS versions).
 interface SpeechRecognitionLike {
@@ -10,6 +11,11 @@ interface SpeechRecognitionLike {
   onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
+  onstart?: (() => void) | null;
+  onaudiostart?: (() => void) | null;
+  onspeechstart?: (() => void) | null;
+  onspeechend?: (() => void) | null;
+  onaudioend?: (() => void) | null;
   start(): void;
   stop(): void;
   abort(): void;
@@ -36,14 +42,14 @@ export function listen(onText: (t: string) => void, onDone: (t: string) => void,
     onError("Voice not supported here. Type instead.");
     return () => {};
   }
-  // Release the mic and speakers from the last attempt and answer, or the phone won't hear the next question.
+  // Drop any earlier attempt. Don't touch audio here: changing it right as the mic starts can stop the mic starting.
   cancelListening?.();
-  stopSpeaking();
-  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-  if (player && player.src !== SILENCE) player.pause(); // don't abort the unlock clip from this same tap
-  setAudioSession("play-and-record");
 
   const rec = new SR();
+  dbg(`recognizer: new (speaking=${"speechSynthesis" in window && window.speechSynthesis.speaking})`);
+  for (const ev of ["start", "audiostart", "speechstart", "speechend", "audioend"] as const) {
+    rec[`on${ev}`] = () => dbg(`recognizer: ${ev}`);
+  }
   rec.lang = "en-US";
   rec.interimResults = true;
   rec.continuous = false;
@@ -54,6 +60,7 @@ export function listen(onText: (t: string) => void, onDone: (t: string) => void,
     if (settled) return;
     settled = true;
     clearTimeout(watchdog);
+    dbg(`recognizer: done text="${text.trim()}"${failure ? ` failure="${failure}"` : ""}`);
     if (cancelListening === cancel) cancelListening = null;
     if (failure && !text.trim()) onError(failure);
     else onDone(text.trim());
@@ -66,21 +73,28 @@ export function listen(onText: (t: string) => void, onDone: (t: string) => void,
   };
   rec.onresult = (e) => {
     text = Array.from(e.results).map((r) => r[0].transcript).join(" ");
+    dbg(`recognizer: result "${text}"`);
     onText(text);
   };
   rec.onerror = (e) => {
+    dbg(`recognizer: error ${e.error}`);
     if (e.error !== "no-speech" && e.error !== "aborted") failure = MIC_ERRORS[e.error] ?? `Mic error: ${e.error}. Try again.`;
     setTimeout(settle, 1000); // iOS sometimes never fires onend after an error
   };
-  rec.onend = settle;
+  rec.onend = () => {
+    dbg("recognizer: end");
+    settle();
+  };
   const watchdog = setTimeout(() => {
+    dbg("recognizer: 12s watchdog");
     rec.stop();
     setTimeout(settle, 1000); // iOS sometimes never fires onend
   }, 12_000);
   cancelListening = cancel;
   try {
     rec.start();
-  } catch {
+  } catch (err) {
+    dbg(`recognizer: start() threw ${err instanceof Error ? err.name : err}`);
     failure = "Mic busy, try again.";
     settle();
   }
@@ -94,10 +108,11 @@ export function listen(onText: (t: string) => void, onDone: (t: string) => void,
 let player: HTMLAudioElement | null = null;
 const SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
-function setAudioSession(type: "playback" | "play-and-record") {
-  // Safari 17+. "playback" plays through the silent switch but blocks the mic, so flip it per phase.
+function setAudioSession(type: "playback" | "auto") {
+  // Safari 17+. "playback" plays through the silent switch but blocks the mic, so it's only on while talking.
   const nav = navigator as Navigator & { audioSession?: { type: string } };
   if (nav.audioSession) nav.audioSession.type = type;
+  dbg(`audio session -> ${type}${nav.audioSession ? "" : " (not supported)"}`);
 }
 
 let unlocked = false;
@@ -108,7 +123,9 @@ export function unlockAudio() {
   unlocked = true;
   player ??= new Audio();
   player.src = SILENCE;
-  player.play().catch(() => {
+  dbg("unlock audio");
+  player.play().catch((err) => {
+    dbg(`unlock: play() rejected ${err instanceof Error ? err.name : err}`);
     unlocked = false; // retry on the next tap
   });
   if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
@@ -127,6 +144,7 @@ function playStream(url: string): Promise<boolean> {
     const a = (player ??= new Audio());
     let started = false;
     const done = (ok: boolean) => {
+      dbg(`voice audio: done played=${ok}`);
       cancelSpeech = null;
       a.onplaying = a.onended = a.onerror = null;
       clearTimeout(timer);
@@ -134,10 +152,12 @@ function playStream(url: string): Promise<boolean> {
     };
     // 8s to start (204 or stalled stream -> browser voice); once playing, a 60s safety cap.
     let timer = setTimeout(() => {
+      dbg("voice audio: no start after 8s");
       a.pause();
       done(started);
     }, 8_000);
     a.onplaying = () => {
+      dbg("voice audio: playing");
       started = true;
       clearTimeout(timer);
       timer = setTimeout(() => {
@@ -145,14 +165,24 @@ function playStream(url: string): Promise<boolean> {
         done(true);
       }, 60_000);
     };
-    a.onended = () => done(true);
-    a.onerror = () => done(started);
+    a.onended = () => {
+      dbg("voice audio: ended");
+      done(true);
+    };
+    a.onerror = () => {
+      dbg(`voice audio: error code=${a.error?.code}`);
+      done(started);
+    };
     cancelSpeech = () => {
+      dbg("voice audio: skipped");
       a.pause();
       done(true);
     };
     a.src = url;
-    a.play().catch(() => done(started));
+    a.play().catch((err) => {
+      dbg(`voice audio: play() rejected ${err instanceof Error ? err.name : err}`);
+      done(started);
+    });
   });
 }
 
@@ -169,8 +199,15 @@ function browserSpeak(text: string, p: Persona): Promise<void> {
       cancelSpeech = null;
       resolve();
     };
-    u.onend = done;
-    u.onerror = done;
+    u.onstart = () => dbg("browser voice: start");
+    u.onend = () => {
+      dbg("browser voice: end");
+      done();
+    };
+    u.onerror = (e) => {
+      dbg(`browser voice: error ${e.error}`);
+      done();
+    };
     cancelSpeech = () => {
       window.speechSynthesis.cancel();
       done();
@@ -183,9 +220,14 @@ function browserSpeak(text: string, p: Persona): Promise<void> {
 /** Fish Audio or ElevenLabs streamed via our server; falls back to the browser voice. */
 export async function speak(text: string, p: Persona, sig?: string): Promise<void> {
   setAudioSession("playback");
-  const url = `/api/speak?${new URLSearchParams({ text, persona: p.id, sig: sig ?? "" })}`;
-  if (await playStream(url)) return;
-  await withTimeout(browserSpeak(text, p));
+  try {
+    const url = `/api/speak?${new URLSearchParams({ text, persona: p.id, sig: sig ?? "" })}`;
+    if (await playStream(url)) return;
+    dbg("browser voice: fallback");
+    await withTimeout(browserSpeak(text, p));
+  } finally {
+    setAudioSession("auto"); // hand the mic back while idle, not at the next tap
+  }
 }
 
 declare global {
