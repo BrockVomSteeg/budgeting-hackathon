@@ -67,7 +67,7 @@ Object.assign(globalThis, {
 Object.defineProperty(globalThis.navigator, "audioSession", { value: session, configurable: true });
 
 const { listen, speak, stopSpeaking, unlockAudio } = await import("./voice.ts");
-const persona = { id: "sergeant", browserVoice: { pitch: 1, rate: 1 } } as Persona;
+const persona = { id: "chef", browserVoice: { pitch: 1, rate: 1 } } as Persona;
 const latest = () => FakeRecognition.all[FakeRecognition.all.length - 1];
 
 function ask() {

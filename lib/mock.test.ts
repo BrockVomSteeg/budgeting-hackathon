@@ -19,7 +19,7 @@ test("tight warns with the real amount left", () => {
   assert.doesNotMatch(a.line, /Yes, chef/);
 });
 test("no cites the category money left", () => {
-  const a = mockAnswer(demoBudget, "can I afford a $400 jacket?", "grandma");
+  const a = mockAnswer(demoBudget, "can I afford a $400 jacket?", "chef");
   assert.equal(a.verdict, "no");
   assert.match(a.line, /\$90\b/);
 });

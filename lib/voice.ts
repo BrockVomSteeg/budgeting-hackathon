@@ -115,10 +115,83 @@ function setAudioSession(type: "playback" | "auto") {
   dbg(`audio session -> ${type}${nav.audioSession ? "" : " (not supported)"}`);
 }
 
+// Loudness meter for the talking head. Once the player is routed through Web Audio it only makes
+// sound while the context runs, so we route it only when the context is running.
+let ctx: AudioContext | null = null;
+let analyser: AnalyserNode | null = null;
+let boost: GainNode | null = null;
+const samples = new Uint8Array(512);
+
+// Speaker mode: louder playback (gain behind a compressor so it doesn't clip) and the iOS
+// "playback" audio session, which uses the loudspeaker instead of the quiet call-style route.
+let speakerMode = true;
+const BOOST = 1.8;
+
+export function setSpeakerMode(on: boolean) {
+  speakerMode = on;
+  if (boost) boost.gain.value = on ? BOOST : 1;
+}
+
+function meter(a: HTMLAudioElement) {
+  if (analyser || !ctx || ctx.state !== "running") return;
+  try {
+    const src = ctx.createMediaElementSource(a);
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.ratio.value = 12;
+    boost = ctx.createGain();
+    boost.gain.value = speakerMode ? BOOST : 1;
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = samples.length;
+    src.connect(analyser); // meter the raw voice, before the boost
+    src.connect(boost);
+    boost.connect(limiter);
+    limiter.connect(ctx.destination);
+  } catch {
+    analyser = null;
+  }
+}
+
+// Some browsers (iOS Safari) play the audio but feed the analyser silence. If a clip has played for
+// a while and the meter never moved, treat it as unmeasurable so the mouth flaps instead of freezing.
+let clipStart = 0;
+let clipPeak = 0;
+let lastLevel = 0;
+
+/** Loudness of the voice playing now, 0..1. -1 means something is talking but we can't measure it. */
+export function voiceLevel(): number {
+  const playing = !!player && !player.paused && player.currentTime > 0;
+  let level = 0;
+  if (playing && analyser) {
+    analyser.getByteTimeDomainData(samples);
+    let sum = 0;
+    for (const v of samples) sum += ((v - 128) / 128) ** 2;
+    level = Math.min(1, Math.sqrt(sum / samples.length) * 4);
+    clipPeak = Math.max(clipPeak, level);
+    if (clipPeak < 0.02 && performance.now() - clipStart > 600) level = -1;
+  } else if (playing || (typeof window !== "undefined" && window.speechSynthesis?.speaking)) {
+    level = -1;
+  }
+  lastLevel = level;
+  return level;
+}
+
+/** For ?debug=1: what the meter sees. */
+export function audioDebug(): string {
+  const playing = !!player && !player.paused;
+  return `ctx:${ctx?.state ?? "none"} meter:${analyser ? "on" : "off"} playing:${playing} t:${player?.currentTime.toFixed(1) ?? "-"} level:${lastLevel.toFixed(2)} peak:${clipPeak.toFixed(2)}`;
+}
+
 let unlocked = false;
 
 /** Call inside a tap handler so iOS lets us play audio later. Only the first tap needs it. */
 export function unlockAudio() {
+  try {
+    ctx ??= new AudioContext();
+    ctx.resume().catch(() => {}); // every tap: iOS can suspend it between answers
+  } catch {
+    // no Web Audio: the talking head just flaps
+  }
   if (unlocked) return;
   unlocked = true;
   player ??= new Audio();
@@ -153,6 +226,11 @@ export function stopSpeaking() {
 function playStream(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     const a = (player ??= new Audio());
+    // Routed through a suspended context = silent. Let the browser voice take it instead.
+    if (analyser && ctx?.state !== "running") return resolve(false);
+    meter(a);
+    clipStart = performance.now();
+    clipPeak = 0;
     let started = false;
     const done = (ok: boolean) => {
       dbg(`voice audio: done played=${ok}`);
@@ -230,14 +308,15 @@ function browserSpeak(text: string, p: Persona): Promise<void> {
 
 /** Fish Audio or ElevenLabs streamed via our server; falls back to the browser voice. */
 export async function speak(text: string, p: Persona, sig?: string): Promise<void> {
-  setAudioSession("playback");
+  // Speaker mode off = leave the session alone (after the mic, iOS stays on the quieter call-style route).
+  if (speakerMode) setAudioSession("playback");
   try {
     const url = `/api/speak?${new URLSearchParams({ text, persona: p.id, sig: sig ?? "" })}`;
     if (await playStream(url)) return;
     dbg("browser voice: fallback");
     await withTimeout(browserSpeak(text, p));
   } finally {
-    setAudioSession("auto"); // hand the mic back while idle, not at the next tap
+    if (speakerMode) setAudioSession("auto"); // hand the mic back while idle, not at the next tap
   }
 }
 

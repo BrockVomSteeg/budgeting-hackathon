@@ -1,41 +1,85 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ChefAvatar, type Status } from "@/components/ChefAvatar";
 import { BudgetMeters } from "@/components/BudgetMeters";
-import { LiveCall } from "@/components/LiveCall";
-import { PersonaPicker } from "@/components/PersonaPicker";
-import { VerdictCard } from "@/components/VerdictCard";
-import { demoBudget } from "@/data/budget";
-import { personas } from "@/lib/personas";
-import type { AskResponse, PersonaId, Turn } from "@/lib/types";
-import { LIMITS } from "@/lib/types";
+import { AddSheet, CategorySheet, ChatSheet, SettingsSheet, TxnSheet, type ChatMsg } from "@/components/Sheets";
+import { Categories } from "@/components/tabs/Categories";
+import { Dashboard } from "@/components/tabs/Dashboard";
+import { Recurrings } from "@/components/tabs/Recurrings";
+import { Transactions } from "@/components/tabs/Transactions";
+import { TAB_LABEL, TABS, type Tab } from "@/components/tabs/types";
+import { Icon } from "@/components/ui";
+import { useLedger } from "@/components/useLedger";
+import { demoLedger } from "@/data/budget";
+import { addTxn, deleteTxn, markAllReviewed, setLimit, toBudget, togglePaid, updateTxn } from "@/lib/ledger";
 import { dbg, onDebug } from "@/lib/debug";
+import { GORDON } from "@/lib/personas";
 import { recorderSupported, startRecording, transcribe } from "@/lib/record";
-import { listen, primeAudio, speak, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
+import type { AskResponse, CategoryId } from "@/lib/types";
+import { LIMITS } from "@/lib/types";
+import { listen, primeAudio, setSpeakerMode, speak, stopSpeaking, sttSupported, unlockAudio } from "@/lib/voice";
 
-type Status = "idle" | "listening" | "thinking" | "speaking";
+const GREETING = "Right. What are we buying? Tap me and ask, and it better not be RAW.";
 
-export default function Home() {
-  const [persona, setPersona] = useState<PersonaId>("sergeant");
+// The ledger lives in localStorage, so render the app on the client only (no hydration mismatch).
+const subscribe = () => () => {};
+export default function Page() {
+  const mounted = useSyncExternalStore(subscribe, () => true, () => false);
+  return mounted ? <App /> : <main className="app" />;
+}
+
+type Open =
+  | { kind: "txn"; id: string }
+  | { kind: "category"; id: CategoryId }
+  | { kind: "add" }
+  | { kind: "chat" }
+  | { kind: "settings" }
+  | null;
+
+function App() {
+  const [ledger, setLedger] = useLedger();
+  const [tab, setTabState] = useState<Tab>(() => {
+    const h = window.location.hash.slice(1) as Tab;
+    return TABS.includes(h) ? h : "dashboard";
+  });
   const [status, setStatus] = useState<Status>("idle");
   const [heard, setHeard] = useState("");
-  const [typed, setTyped] = useState("");
-  const [answer, setAnswer] = useState<AskResponse | null>(null);
-  const [spokenBy, setSpokenBy] = useState<PersonaId>("sergeant");
   const [error, setError] = useState("");
-  const [mode, setMode] = useState<"live" | "tap">("tap");
-  const history = useRef<Turn[]>([]);
+  const [answer, setAnswer] = useState<AskResponse | null>(null);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [open, setOpen] = useState<Open>(null);
+  const [compact, setCompact] = useState(false);
+  const [speaker, setSpeaker] = useState(() => localStorage.getItem("ciai-speaker") !== "off");
   const stop = useRef<() => void>(() => {});
   const serverStt = useRef(true); // flips off if /api/transcribe says it isn't configured
   const [debugLines, setDebugLines] = useState<string[]>([]);
 
-  // ?debug in the URL shows a live log of mic and audio events under the button.
+  // ?debug in the URL shows a live log of mic and audio events.
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has("debug")) return;
     onDebug((line) => setDebugLines((l) => [...l, line].slice(-25)));
     dbg(`debug on: ${navigator.userAgent}`);
     return () => onDebug(null);
   }, []);
+
+  useEffect(() => {
+    setSpeakerMode(speaker);
+    localStorage.setItem("ciai-speaker", speaker ? "on" : "off");
+  }, [speaker]);
+
+  useEffect(() => {
+    const onScroll = () => setCompact(window.scrollY > 60);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    history.replaceState(null, "", `#${t}`);
+    window.scrollTo({ top: 0 });
+  };
+  const close = useCallback(() => setOpen(null), []);
 
   async function ask(text: string) {
     dbg(`ask: "${text}"`);
@@ -46,25 +90,23 @@ export default function Home() {
     setError("");
     setHeard(text);
     setStatus("thinking");
+    const prior = messages.slice(-LIMITS.historyMax).map(({ role, text }) => ({ role, text }));
+    setMessages((m) => [...m, { role: "user", text }]);
     try {
       const r = await fetch("/api/ask", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, persona, history: history.current }),
+        body: JSON.stringify({ text, persona: GORDON.id, history: prior, budget: toBudget(ledger) }),
         signal: AbortSignal.timeout(20_000),
       });
       dbg(`ask: HTTP ${r.status}`);
       if (!r.ok) throw new Error(r.status === 429 ? "Too fast. Breathe." : "Something broke.");
       const a: AskResponse = await r.json();
       setAnswer(a);
-      setSpokenBy(persona);
-      history.current = [
-        ...history.current,
-        { role: "user" as const, text },
-        { role: "assistant" as const, text: a.line },
-      ].slice(-LIMITS.historyMax);
+      setHeard("");
+      setMessages((m) => [...m, { role: "assistant", text: a.line, verdict: a.verdict }]);
       setStatus("speaking");
-      await speak(a.line, personas[persona], a.sig);
+      await speak(a.line, GORDON, a.sig);
     } catch (e) {
       dbg(`ask: failed ${e instanceof Error ? e.message : e}`);
       setError(e instanceof Error ? e.message : "Something broke.");
@@ -73,15 +115,15 @@ export default function Home() {
     setStatus("idle");
   }
 
-  async function onReplay() {
+  async function replay() {
     if (!answer?.line || status !== "idle") return;
     unlockAudio();
     setStatus("speaking");
-    await speak(answer.line, personas[spokenBy], answer.sig);
+    await speak(answer.line, GORDON, answer.sig);
     setStatus("idle");
   }
 
-  function onMic() {
+  function onGordon() {
     dbg(`tap: status=${status}`);
     unlockAudio();
     if (status === "listening") {
@@ -94,7 +136,7 @@ export default function Home() {
     setError("");
     if (serverStt.current && recorderSupported()) return void recordQuestion();
     dbg(`using built-in recognizer (supported=${sttSupported()})`);
-    if (!sttSupported()) return setError("Voice not supported here. Type below.");
+    if (!sttSupported()) return setOpen({ kind: "chat" });
     setStatus("listening");
     stop.current = listen(setHeard, ask, (e) => {
       setError(e);
@@ -107,7 +149,7 @@ export default function Home() {
     setStatus("listening");
     let sent = false;
     let finish: (() => Promise<Blob>) | null = null;
-    const send = async () => {
+    const done = async () => {
       if (sent || !finish) return;
       sent = true;
       setStatus("thinking");
@@ -116,119 +158,139 @@ export default function Home() {
         if (text === null) {
           dbg("server speech-to-text not configured, switching to built-in recognizer");
           serverStt.current = false;
-          setError("Tap the mic again.");
+          setError("Tap Gordon again.");
           return setStatus("idle");
         }
         await ask(text);
       } catch (e) {
         dbg(`record: failed ${e instanceof Error ? `${e.name} ${e.message}` : e}`);
-        setError("Didn't catch that. Try again, or type below.");
+        setError("Didn't catch that. Try again, or type in the chat.");
         setStatus("idle");
       }
     };
-    stop.current = () => void send();
+    stop.current = () => void done();
     try {
-      finish = await startRecording(() => void send());
+      finish = await startRecording(() => void done());
     } catch (e) {
       dbg(`recorder: mic failed ${e instanceof Error ? `${e.name} ${e.message}` : e}`);
       const denied = e instanceof Error && e.name === "NotAllowedError";
-      setError(
-        denied
-          ? "Mic blocked. iPhone: Settings › Safari › Microphone › Allow, then reload."
-          : "Mic was busy. Tap the mic again.",
-      );
+      setError(denied ? "Mic blocked. iPhone: Settings › Safari › Microphone › Allow, then reload." : "Mic was busy. Tap Gordon again.");
       setStatus("idle");
     }
   }
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function send(text: string) {
     unlockAudio();
-    const t = typed.trim().slice(0, LIMITS.textMax);
     if (status !== "idle") return;
-    setTyped("");
-    ask(t);
+    ask(text);
   }
 
-  // The live ElevenLabs agent can only speak ElevenLabs voices, so Fish personas run in tap mode.
-  const tapOnly = Boolean(personas[persona].fishVoiceId);
-  const view = tapOnly ? "tap" : mode;
-  const micLabel = { idle: "Tap & ask", listening: "Listening… tap to send", thinking: "Thinking…", speaking: "Talking… tap to skip" }[status];
+  const label = { idle: "Tap to ask Gordon", listening: "Listening… tap to send", thinking: "Thinking…", speaking: "Tap to skip" }[status];
+  const mood = status !== "listening" && status !== "thinking" && answer?.verdict === "yes" ? "happy" : "angry";
+  const bubble =
+    status === "listening" ? heard || "I'm listening…" : status === "thinking" ? "…" : error || answer?.line || GREETING;
+  const showBubble = !compact || status !== "idle";
 
   return (
     <main className="app">
-      <header>
-        <h1>Can I Afford It? 💸</h1>
-        <p className="sub">Ask out loud. Get the truth. Maybe get roasted.</p>
+      <header className={`top ${compact ? "compact" : ""}`}>
+        <div className="top-row">
+          <button className="icon-btn" onClick={() => setOpen({ kind: "settings" })} aria-label="Settings">
+            {Icon.gear}
+          </button>
+          <ChefAvatar src={GORDON.avatar!} status={status} mood={mood} label={label} onClick={onGordon} disabled={status === "thinking"} />
+          <button className="icon-btn" onClick={() => setOpen({ kind: "chat" })} aria-label="Chat with Gordon">
+            {Icon.chat}
+          </button>
+        </div>
+        {showBubble && (
+          <button className={`bubble ${error ? "err" : ""} ${status === "thinking" ? "typing" : ""}`} onClick={() => setOpen({ kind: "chat" })} aria-live="polite">
+            {answer && status === "idle" && !error && answer.verdict !== "info" && (
+              <span className={`verdict v-${answer.verdict}`}>{{ yes: "YES", no: "NOPE", tight: "TIGHT" }[answer.verdict]}</span>
+            )}
+            <span className="bubble-text">{status === "listening" && heard ? `“${bubble}”` : bubble}</span>
+          </button>
+        )}
+        <nav className="tabs" aria-label="Sections">
+          {TABS.map((t) => (
+            <button key={t} className={t === tab ? "tab on" : "tab"} onClick={() => setTab(t)} aria-current={t === tab ? "page" : undefined}>
+              {TAB_LABEL[t]}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      <PersonaPicker
-        value={persona}
-        onChange={(p) => {
-          // Fresh history per character, so one persona's style (or swearing) doesn't leak into another.
-          history.current = [];
-          setPersona(p);
-        }}
-      />
+      <div className="content">
+        {debugLines.length > 0 && <pre className="debug-log">{debugLines.join("\n")}</pre>}
+        {tab === "dashboard" && (
+          <Dashboard
+            ledger={ledger}
+            go={setTab}
+            onReviewAll={() => setLedger(markAllReviewed)}
+            onOpenTxn={(id) => setOpen({ kind: "txn", id })}
+          />
+        )}
+        {tab === "categories" && <Categories ledger={ledger} onOpen={(id) => setOpen({ kind: "category", id })} />}
+        {tab === "transactions" && (
+          <Transactions ledger={ledger} onOpen={(id) => setOpen({ kind: "txn", id })} onAdd={() => setOpen({ kind: "add" })} />
+        )}
+        {tab === "recurrings" && <Recurrings ledger={ledger} onToggle={(id) => setLedger((l) => togglePaid(l, id))} />}
+        {tab === "plan" && <BudgetMeters budget={toBudget(ledger)} />}
+      </div>
 
-      {view === "live" ? (
-        <LiveCall
-          persona={persona}
-          onVerdict={setAnswer}
-          onUnavailable={() => {
-            setMode("tap");
-            setError("Live call isn't set up yet. Using tap-to-ask.");
+      {open?.kind === "txn" && (
+        <TxnSheet
+          ledger={ledger}
+          id={open.id}
+          onClose={close}
+          onCategory={(category) => setLedger((l) => updateTxn(l, open.id, { category }))}
+          onReviewed={(reviewed) => setLedger((l) => updateTxn(l, open.id, { reviewed }))}
+          onDelete={() => {
+            setLedger((l) => deleteTxn(l, open.id));
+            close();
           }}
         />
-      ) : (
-      <button
-        className={`mic mic-${status}`}
-        onClick={onMic}
-        disabled={status === "thinking"}
-        aria-label={micLabel}
-      >
-        <span className="mic-icon">{status === "listening" ? "👂" : status === "thinking" ? "🧠" : status === "speaking" ? "🔊" : "🎙️"}</span>
-        <span className="mic-label">{micLabel}</span>
-      </button>
       )}
-
-      {heard && <p className="heard">“{heard}”</p>}
-      {error && <p className="error" role="alert">{error}</p>}
-      {debugLines.length > 0 && (
-        <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-word", textAlign: "left", opacity: 0.8 }}>
-          {debugLines.join("\n")}
-        </pre>
-      )}
-      {answer && (
-        <VerdictCard
-          answer={answer}
-          onReplay={view === "tap" && answer.line ? onReplay : undefined}
-          replayDisabled={status !== "idle"}
+      {open?.kind === "category" && (
+        <CategorySheet
+          key={open.id}
+          ledger={ledger}
+          id={open.id}
+          onClose={close}
+          onLimit={(n) => setLedger((l) => setLimit(l, open.id, n))}
+          onOpenTxn={(id) => setOpen({ kind: "txn", id })}
         />
       )}
-
-      <BudgetMeters budget={demoBudget} />
-
-      <form className="type" onSubmit={onSubmit}>
-        <input
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          maxLength={LIMITS.textMax}
-          placeholder="Or type: can I afford a $400 jacket?"
-          aria-label="Type your question"
+      {open?.kind === "add" && (
+        <AddSheet
+          ledger={ledger}
+          onClose={close}
+          onAdd={(t) => {
+            setLedger((l) => addTxn(l, t));
+            close();
+          }}
+          onAsk={(q) => {
+            close();
+            send(q);
+          }}
         />
-        <button type="submit" disabled={!typed.trim() || status !== "idle"}>Ask</button>
-      </form>
-
-      {tapOnly ? (
-        <p className="source">🎙️ {personas[persona].name} talks in tap-to-ask mode</p>
-      ) : (
-        <button className="mode-switch" onClick={() => setMode(mode === "live" ? "tap" : "live")}>
-          {mode === "live" ? "Back to tap-to-ask" : "Try live call (beta)"}
-        </button>
       )}
-
-      {answer && view === "tap" && <p className="source">{answer.source === "claude" ? "⚡ live AI" : "🧪 mock mode"}</p>}
+      {open?.kind === "chat" && (
+        <ChatSheet messages={messages} busy={status !== "idle"} onClose={close} onSend={send} onReplay={answer?.line ? replay : undefined} />
+      )}
+      {open?.kind === "settings" && (
+        <SettingsSheet
+          speaker={speaker}
+          onSpeaker={setSpeaker}
+          onReset={() => {
+            setLedger(demoLedger);
+            setMessages([]);
+            setAnswer(null);
+            close();
+          }}
+          onClose={close}
+        />
+      )}
     </main>
   );
 }

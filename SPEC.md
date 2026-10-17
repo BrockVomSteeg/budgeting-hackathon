@@ -16,7 +16,7 @@ You ask *"Can I afford a $400 jacket?"* → it does the math → **"No."** → t
 3. 🧠 `/api/ask` → Claude reads the question + budget → verdict + a dynamic roast in the persona's voice
 4. 🧮 Code double-checks the math (Claude extracts the amount and category, code decides yes/no)
 5. 🔊 `/api/speak` → ElevenLabs TTS per persona, Fish Audio for Gordon (falls back to ElevenLabs, then the browser voice)
-6. 🎭 4 personas: 🎖️ Drill Sergeant, 👵 Disappointed Grandma, 🍳 Gordon Ramsay (R18+, see [PERSONA_GORDON.md](PERSONA_GORDON.md)), 💅 Rich Bestie
+6. 🎭 One character: 🍳 Gordon Ramsay (R18+, see [PERSONA_GORDON.md](PERSONA_GORDON.md)), always at the top of a Copilot-style budgeting app (Dashboard, Categories, Transactions, Recurrings).
 7. 💬 Short memory (last 6 turns) so follow-ups work ("ok what about $150?")
 8. 🧪 Mock mode: no keys → canned logic + browser voice, still demoable
 9. 🔐 Keys only on the server (Vercel env vars), never `NEXT_PUBLIC_`, never committed

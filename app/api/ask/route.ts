@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { demoBudget } from "@/data/budget";
+import { parseBudget } from "@/lib/budget";
 import { askClaude, hasClaude } from "@/lib/claude";
 import { mockAnswer } from "@/lib/mock";
 import { isPersonaId } from "@/lib/personas";
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad input" }, { status: 400 });
   }
   const history = cleanHistory(body.history);
+  // The phone sends the budget the user has edited in the app; anything malformed falls back to the demo.
+  const budget = parseBudget(body.budget) ?? demoBudget;
 
   const care = distressReply(text);
   if (care) {
@@ -44,13 +47,13 @@ export async function POST(req: Request) {
     return reply(a, persona);
   }
 
-  if (!hasClaude()) return reply(mockAnswer(demoBudget, text, persona), persona);
+  if (!hasClaude()) return reply(mockAnswer(budget, text, persona), persona);
   try {
-    return reply(await askClaude(demoBudget, text, persona, history), persona);
+    return reply(await askClaude(budget, text, persona, history), persona);
   } catch (err) {
     console.error("ask: claude failed, using mock", err instanceof Error ? err.message : err);
     const reason = err instanceof Error ? err.constructor.name : "unknown";
-    return reply(mockAnswer(demoBudget, text, persona), persona, {
+    return reply(mockAnswer(budget, text, persona), persona, {
       headers: { "x-fallback-reason": reason },
     });
   }

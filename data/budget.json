@@ -3,22 +3,60 @@
   "monthlyIncome": 6200,
   "daysLeftInMonth": 14,
   "checking": 2350,
-  "upcomingBills": 900,
   "categories": [
-    { "id": "food", "label": "Food & coffee", "limit": 600, "spent": 458 },
-    { "id": "shopping", "label": "Shopping", "limit": 300, "spent": 210 },
-    { "id": "fun", "label": "Fun & games", "limit": 250, "spent": 190 },
-    { "id": "travel", "label": "Travel", "limit": 400, "spent": 0 },
-    { "id": "bills", "label": "Bills", "limit": 1800, "spent": 1800 }
+    {"id": "food", "label": "Food & coffee", "emoji": "🍔", "color": "#f97316", "limit": 600},
+    {"id": "shopping", "label": "Shopping", "emoji": "🛍️", "color": "#a855f7", "limit": 300},
+    {"id": "fun", "label": "Fun & games", "emoji": "🎮", "color": "#ec4899", "limit": 250},
+    {"id": "travel", "label": "Travel", "emoji": "✈️", "color": "#06b6d4", "limit": 400},
+    {"id": "bills", "label": "Bills", "emoji": "🧾", "color": "#3b82f6", "limit": 1800}
+  ],
+  "transactions": [
+    {"id": "t1", "day": 1, "merchant": "Rent", "amount": 1600, "category": "bills", "reviewed": true, "recurringId": "r-rent"},
+    {"id": "t2", "day": 2, "merchant": "Whole Foods", "amount": 86.4, "category": "food", "reviewed": true},
+    {"id": "t3", "day": 3, "merchant": "Blue Bottle Coffee", "amount": 6.5, "category": "food", "reviewed": true},
+    {"id": "t4", "day": 3, "merchant": "Amazon", "amount": 64.99, "category": "shopping", "reviewed": true},
+    {"id": "t5", "day": 4, "merchant": "Chipotle", "amount": 14.25, "category": "food", "reviewed": true},
+    {"id": "t6", "day": 5, "merchant": "PG&E Electric", "amount": 85, "category": "bills", "reviewed": true, "recurringId": "r-electric"},
+    {"id": "t7", "day": 5, "merchant": "AMC Theatres", "amount": 32.5, "category": "fun", "reviewed": true},
+    {"id": "t8", "day": 6, "merchant": "Trader Joe's", "amount": 72.1, "category": "food", "reviewed": true},
+    {"id": "t9", "day": 7, "merchant": "Uniqlo", "amount": 49.9, "category": "shopping", "reviewed": true},
+    {"id": "t10", "day": 8, "merchant": "Verizon Wireless", "amount": 65, "category": "bills", "reviewed": true, "recurringId": "r-phone"},
+    {"id": "t11", "day": 8, "merchant": "Sweetgreen", "amount": 16.8, "category": "food", "reviewed": true},
+    {"id": "t12", "day": 9, "merchant": "Steam", "amount": 59.99, "category": "fun", "reviewed": true},
+    {"id": "t13", "day": 10, "merchant": "Comcast Internet", "amount": 50, "category": "bills", "reviewed": true, "recurringId": "r-internet"},
+    {"id": "t14", "day": 10, "merchant": "Starbucks", "amount": 7.25, "category": "food", "reviewed": true},
+    {"id": "t15", "day": 11, "merchant": "Target", "amount": 38.12, "category": "shopping", "reviewed": true},
+    {"id": "t16", "day": 12, "merchant": "DoorDash", "amount": 38.9, "category": "food", "reviewed": true},
+    {"id": "t17", "day": 13, "merchant": "Safeway", "amount": 64.3, "category": "food", "reviewed": true},
+    {"id": "t18", "day": 13, "merchant": "The Rusty Nail Bar", "amount": 47.51, "category": "fun", "reviewed": false},
+    {"id": "t19", "day": 14, "merchant": "Joe's Pizza", "amount": 22, "category": "food", "reviewed": false},
+    {"id": "t20", "day": 15, "merchant": "Sephora", "amount": 56.99, "category": "shopping", "reviewed": false},
+    {"id": "t21", "day": 15, "merchant": "Blue Bottle Coffee", "amount": 6.5, "category": "food", "reviewed": false},
+    {"id": "t22", "day": 16, "merchant": "Uber Eats", "amount": 41.2, "category": "food", "reviewed": false},
+    {"id": "t23", "day": 16, "merchant": "Lucky Strike Bowling", "amount": 50, "category": "fun", "reviewed": false},
+    {"id": "t24", "day": 17, "merchant": "Costco", "amount": 81.8, "category": "food", "reviewed": false}
+  ],
+  "recurrings": [
+    {"id": "r-rent", "name": "Rent", "emoji": "🔑", "amount": 1600, "day": 1},
+    {"id": "r-electric", "name": "PG&E Electric", "emoji": "💡", "amount": 85, "day": 5},
+    {"id": "r-phone", "name": "Verizon Wireless", "emoji": "📱", "amount": 65, "day": 8},
+    {"id": "r-internet", "name": "Comcast Internet", "emoji": "🌐", "amount": 50, "day": 10},
+    {"id": "r-car", "name": "Car payment", "emoji": "🚗", "amount": 420, "day": 19},
+    {"id": "r-insurance", "name": "Allstate car insurance", "emoji": "🛡️", "amount": 180, "day": 21},
+    {"id": "r-loan", "name": "Student loan", "emoji": "🎓", "amount": 250, "day": 24},
+    {"id": "r-netflix", "name": "Netflix", "emoji": "🎬", "amount": 18, "day": 25},
+    {"id": "r-spotify", "name": "Spotify", "emoji": "🎧", "amount": 12, "day": 27},
+    {"id": "r-icloud", "name": "iCloud+", "emoji": "☁️", "amount": 3, "day": 28},
+    {"id": "r-gym", "name": "Planet Fitness", "emoji": "🏋️", "amount": 17, "day": 30}
   ],
   "year": {
     "daysLeft": 75,
     "categories": [
-      { "id": "food", "limit": 7200, "spent": 5480 },
-      { "id": "shopping", "limit": 3600, "spent": 3150 },
-      { "id": "fun", "limit": 3000, "spent": 2050 },
-      { "id": "travel", "limit": 4800, "spent": 4100 },
-      { "id": "bills", "limit": 21600, "spent": 17100 }
+      {"id": "food", "limit": 7200, "spent": 5480},
+      {"id": "shopping", "limit": 3600, "spent": 3150},
+      {"id": "fun", "limit": 3000, "spent": 2050},
+      {"id": "travel", "limit": 4800, "spent": 4100},
+      {"id": "bills", "limit": 21600, "spent": 17100}
     ]
   }
 }

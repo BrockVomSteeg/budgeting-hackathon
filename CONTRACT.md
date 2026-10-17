@@ -1,7 +1,7 @@
 # CONTRACT 🤝: data shapes (source of truth: `lib/types.ts`)
 
 ```ts
-type PersonaId = "sergeant" | "grandma" | "chef" | "bestie";
+type PersonaId = "chef"; // Gordon is the only character
 type CategoryId = "food" | "shopping" | "fun" | "travel" | "bills";
 
 interface Category { id: CategoryId; label: string; limit: number; spent: number }
@@ -20,6 +20,7 @@ interface Persona {
   rules: string;           // content rating (PG-13, or R18+ for Gordon), injected into both prompts
   voiceId: string;         // ElevenLabs premade voice id
   fishVoiceId?: string;    // Fish Audio voice; /api/speak prefers it, persona is tap-mode only
+  avatar?: string;         // /public folder of talking-head frames (idle/talk/shout/smile/grin.webp), replaces the mic
   browserVoice: { pitch: number; rate: number }; // fallback TTS
 }
 

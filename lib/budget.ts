@@ -1,4 +1,4 @@
-import type { Budget, CategoryId, Verdict } from "./types";
+import { CATEGORY_IDS, type Budget, type CategoryId, type Verdict } from "./types.ts";
 
 export const TIGHT_RATIO = 0.8;
 
@@ -24,9 +24,32 @@ export function decide(
   return { verdict: "yes", remainingAfter };
 }
 
+const num = (x: unknown, max = 1e7): x is number => typeof x === "number" && Number.isFinite(x) && Math.abs(x) <= max;
+
+/** The budget the phone sends with a question (the user can edit it in the app). Null if it isn't sane. */
+export function parseBudget(x: unknown): Budget | null {
+  const b = x as Budget | null;
+  if (!b || typeof b !== "object" || !Array.isArray(b.categories) || b.categories.length > CATEGORY_IDS.length) return null;
+  if (![b.monthlyIncome, b.checking, b.upcomingBills].every((v) => num(v)) || !num(b.daysLeftInMonth, 31)) return null;
+  const categories = b.categories.map((c) =>
+    c && (CATEGORY_IDS as readonly string[]).includes(c.id) && typeof c.label === "string" && num(c.limit) && num(c.spent)
+      ? { id: c.id, label: c.label.slice(0, 40), limit: c.limit, spent: c.spent }
+      : null,
+  );
+  if (categories.some((c) => !c)) return null;
+  return {
+    name: typeof b.name === "string" ? b.name.slice(0, 40) : "You",
+    monthlyIncome: b.monthlyIncome,
+    daysLeftInMonth: Math.round(b.daysLeftInMonth),
+    checking: b.checking,
+    upcomingBills: b.upcomingBills,
+    categories: categories as Budget["categories"],
+  };
+}
+
 export function summarize(b: Budget): string {
   const cats = b.categories
-    .map((c) => `${c.id} (${c.label}): $${c.limit - c.spent} left of $${c.limit}`)
+    .map((c) => `${c.id} (${c.label}): $${Math.round((c.limit - c.spent) * 100) / 100} left of $${c.limit}`)
     .join("\n");
   return [
     `User: ${b.name}. ${b.daysLeftInMonth} days left this month.`,

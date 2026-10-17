@@ -1,4 +1,4 @@
-export const PERSONA_IDS = ["sergeant", "grandma", "chef", "bestie"] as const;
+export const PERSONA_IDS = ["chef"] as const;
 export type PersonaId = (typeof PERSONA_IDS)[number];
 
 export const CATEGORY_IDS = ["food", "shopping", "fun", "travel", "bills"] as const;
@@ -33,6 +33,7 @@ export interface Persona {
   rules: string;
   voiceId: string;
   fishVoiceId?: string;
+  avatar?: string; // folder in /public with idle/talk/smile/cheer.webp talking-head frames
   browserVoice: { pitch: number; rate: number };
 }
 
@@ -47,6 +48,7 @@ export interface AskRequest {
   text: string;
   persona: PersonaId;
   history: Turn[];
+  budget?: Budget; // the user's edited budget; the server falls back to the demo budget
 }
 
 export interface AskResponse {

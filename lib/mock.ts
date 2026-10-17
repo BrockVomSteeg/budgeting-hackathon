@@ -67,38 +67,20 @@ const pick = <T,>(xs: T[]): T => xs[Math.floor(Math.random() * xs.length)];
 const usd = (n: number) => `$${Math.round(Math.abs(n)).toLocaleString("en-US")}`;
 
 const ROASTS: Record<PersonaId, ((i: string, l: string) => string)[]> = {
-  sergeant: [
-    (i, l) => `Negative, recruit! You have ${l} left and you want ${i}? Drop and give me a budget!`,
-    (i, l) => `${i}? With ${l} in the bank? That's not a purchase, that's desertion!`,
-  ],
-  grandma: [
-    (i, l) => `Oh sweetie. ${i}? You have ${l} left. I raised four kids on less than that.`,
-    (i, l) => `${l} left and you want ${i}? I'm not mad, sweetie. Just disappointed.`,
-  ],
   chef: [
     (i, l) => `${i}?! With ${l} left? This budget is RAW, you donkey! It's still fucking mooing! Put it back.`,
     (i, l) => `Look at me. Look at me. ${l} left and you want ${i}? I wouldn't trust you running a bath, let alone a fucking bank account.`,
     (i, l) => `${i}? With ${l}? Where's the savings?! WHERE'S THE BLOODY SAVINGS?! Shut it down!`,
     (i, l) => `${l} left and you're ordering ${i}? My gran could budget better, and she's DEAD. Get out!`,
   ],
-  bestie: [
-    (i, l) => `Babe, no. ${i} with ${l} left? That's not self-care, that's self-sabotage.`,
-    (i, l) => `${l} left? And ${i}? Bestie, I love you, but your wallet is in the ICU.`,
-  ],
 };
 
 const HYPES: Record<PersonaId, (i: string, l: string) => string> = {
-  sergeant: (i, l) => `Permission granted, recruit! Get ${i}. You'll still have ${l} left. Dismissed!`,
-  grandma: (i, l) => `Of course, sweetie, get ${i}. You'll still have ${l} left. So responsible!`,
   chef: (i, l) => `${i}? Beautiful. Stunning. ${l} left. Finally, some good fucking budgeting. Yes, chef!`,
-  bestie: (i, l) => `Babe, yes! Get ${i}. You still have ${l}. We love a financially stable queen.`,
 };
 
 const WARNS: Record<PersonaId, (i: string, l: string) => string> = {
-  sergeant: (i, l) => `Proceed with caution, recruit. ${i} leaves you ${l}. Not one dollar more!`,
-  grandma: (i, l) => `Well, sweetie, you can get ${i}, but that leaves only ${l}. Pack a lunch.`,
   chef: (i, l) => `${i}? Fine, but that leaves ${l}. One more order and this kitchen burns down!`,
-  bestie: (i, l) => `Okay babe, ${i} works, but you'd only have ${l} left. Living on the edge.`,
 };
 
 export function mockAnswer(b: Budget, text: string, persona: PersonaId): AskResponse {
