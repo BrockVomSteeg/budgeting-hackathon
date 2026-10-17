@@ -6,7 +6,7 @@ import type { PersonaId } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-const noAudio = () => new Response(null, { status: 204 });
+const noAudio = () => new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
 
 // Fish Audio voice: FISH_VOICE_<PERSONA> env, else the persona's fishVoiceId (Gordon), else FISH_VOICE_ID.
 function fishVoice(persona: PersonaId): string | undefined {

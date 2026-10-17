@@ -98,7 +98,14 @@ export default function Home() {
         <p className="sub">Ask out loud. Get the truth. Maybe get roasted.</p>
       </header>
 
-      <PersonaPicker value={persona} onChange={setPersona} />
+      <PersonaPicker
+        value={persona}
+        onChange={(p) => {
+          // Fresh history per character, so one persona's style (or swearing) doesn't leak into another.
+          history.current = [];
+          setPersona(p);
+        }}
+      />
 
       {view === "live" ? (
         <LiveCall

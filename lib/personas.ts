@@ -50,5 +50,5 @@ export const personas: Record<PersonaId, Persona> = {
 export const personaList = Object.values(personas);
 
 export function isPersonaId(x: unknown): x is PersonaId {
-  return typeof x === "string" && x in personas;
+  return typeof x === "string" && Object.hasOwn(personas, x);
 }

@@ -6,7 +6,7 @@ import { CATEGORY_IDS } from "./types";
 import { decide } from "./budget";
 import { personas } from "./personas";
 import { systemPrompt, userPrompt } from "./prompt";
-import { mockAnswer } from "./mock";
+import { guessCategory, mockAnswer } from "./mock";
 
 // Haiku: cheapest + fastest for short spoken replies. Override with ANTHROPIC_MODEL.
 export const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
@@ -42,13 +42,14 @@ export async function askClaude(
   if (res.stop_reason === "refusal" || !out) return mockAnswer(b, text, persona);
 
   // No amount means no math, so the model doesn't get to issue a yes/no verdict.
-  if (out.amount === null || out.amount <= 0 || out.category === null) {
+  if (out.amount === null || out.amount <= 0) {
     return { ...out, verdict: "info", amount: null, remainingAfter: null, source: "claude" };
   }
 
   // Code owns the math. If the model's verdict disagrees, trust the numbers.
-  const truth = decide(b, out.amount, out.category);
+  const category = out.category ?? guessCategory(text);
+  const truth = decide(b, out.amount, category);
   const agrees = (truth.verdict === "no") === (out.verdict === "no");
   if (!agrees) return mockAnswer(b, text, persona);
-  return { ...out, verdict: truth.verdict, remainingAfter: truth.remainingAfter, source: "claude" };
+  return { ...out, category, verdict: truth.verdict, remainingAfter: truth.remainingAfter, source: "claude" };
 }

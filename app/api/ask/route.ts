@@ -4,6 +4,7 @@ import { askClaude, hasClaude } from "@/lib/claude";
 import { mockAnswer } from "@/lib/mock";
 import { isPersonaId } from "@/lib/personas";
 import { rateLimited } from "@/lib/ratelimit";
+import { distressReply } from "@/lib/safety";
 import { signLine } from "@/lib/sign";
 import { LIMITS, type AskResponse, type PersonaId, type Turn } from "@/lib/types";
 
@@ -36,6 +37,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad input" }, { status: 400 });
   }
   const history = cleanHistory(body.history);
+
+  const care = distressReply(text);
+  if (care) {
+    const a: AskResponse = { verdict: "info", item: null, amount: null, category: null, remainingAfter: null, line: care, source: "mock" };
+    return reply(a, persona);
+  }
 
   if (!hasClaude()) return reply(mockAnswer(demoBudget, text, persona), persona);
   try {

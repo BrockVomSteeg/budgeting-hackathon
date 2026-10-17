@@ -12,7 +12,7 @@ Files: `app/api/*` · `lib/claude.ts` · `lib/agent.ts` · `lib/ratelimit.ts`
 
 ## 🎯 Mid dev #1 (you): voice UX on the phone
 Files: `app/page.tsx` · `components/*` · `lib/voice.ts` (live call UI is `components/LiveCall.tsx`)
-- [ ] Hold-to-talk feels great on the demo phone
+- [ ] Tap-to-ask feels great on the demo phone
 - [ ] iOS audio unlock + speech fallback tested
 - [ ] Big verdict card (✅/❌), persona picker, loading state
 

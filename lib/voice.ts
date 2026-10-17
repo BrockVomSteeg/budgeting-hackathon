@@ -40,7 +40,7 @@ export function listen(onText: (t: string) => void, onDone: (t: string) => void,
   cancelListening?.();
   stopSpeaking();
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-  player?.pause();
+  if (player && player.src !== SILENCE) player.pause(); // don't abort the unlock clip from this same tap
   setAudioSession("play-and-record");
 
   const rec = new SR();
@@ -108,7 +108,9 @@ export function unlockAudio() {
   unlocked = true;
   player ??= new Audio();
   player.src = SILENCE;
-  player.play().catch(() => {});
+  player.play().catch(() => {
+    unlocked = false; // retry on the next tap
+  });
   if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 }
 
@@ -130,11 +132,19 @@ function playStream(url: string): Promise<boolean> {
       clearTimeout(timer);
       resolve(ok);
     };
-    const timer = setTimeout(() => {
+    // 8s to start (204 or stalled stream -> browser voice); once playing, a 60s safety cap.
+    let timer = setTimeout(() => {
       a.pause();
       done(started);
-    }, 25_000);
-    a.onplaying = () => (started = true);
+    }, 8_000);
+    a.onplaying = () => {
+      started = true;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        a.pause();
+        done(true);
+      }, 60_000);
+    };
     a.onended = () => done(true);
     a.onerror = () => done(started);
     cancelSpeech = () => {

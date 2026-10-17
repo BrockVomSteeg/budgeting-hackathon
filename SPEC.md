@@ -11,8 +11,8 @@ You ask *"Can I afford a $400 jacket?"* → it does the math → **"No."** → t
 
 ## ✅ Must-have (by 4:00 PM)
 1. 📱 Phone web app (mobile-first, one screen, works in the phone's browser)
-2. 📞 **Primary: ElevenLabs live voice agent** (real conversation you can interrupt, Claude as the LLM inside ElevenLabs, our code does the math as a client tool)
-2b. 🛟 Backup: tap-to-ask (Web Speech API + `/api/ask` Claude + text box)
+2. 📞 **Optional (beta): ElevenLabs live voice agent** (real conversation you can interrupt, Claude as the LLM inside ElevenLabs, our code does the math as a client tool)
+2b. 🎙️ **Primary: tap-to-ask** (Web Speech API + `/api/ask` Claude + text box)
 3. 🧠 `/api/ask` → Claude reads the question + budget → verdict + a dynamic roast in the persona's voice
 4. 🧮 Code double-checks the math (Claude extracts the amount and category, code decides yes/no)
 5. 🔊 `/api/speak` → ElevenLabs TTS per persona, Fish Audio for Gordon (falls back to ElevenLabs, then the browser voice)
@@ -29,7 +29,11 @@ You ask *"Can I afford a $400 jacket?"* → it does the math → **"No."** → t
 ## 🔐 Key safety (no Infisical needed)
 - Keys live in **Vercel → Project → Settings → Environment Variables** and `.env.local` (gitignored).
 - Browser only calls our `/api/*` routes. Keys never reach the client.
-- Abuse guard: input ≤300 chars, `max_tokens` small, simple per-IP rate limit, spend cap set in the Anthropic console.
+- Abuse guard: `/api/speak` only voices HMAC-signed lines from `/api/ask`; input ≤300 chars, `max_tokens` small, simple per-IP rate limit, spend cap set in the Anthropic console.
+
+## 🛡️ Safety
+- Distress or self-harm phrasing gets a fixed calm reply (988 / 211) before any model call (`lib/safety.ts`).
+- Each character gets fresh conversation history.
 
 ## ⚠️ Risks
 | Risk | Mitigation |

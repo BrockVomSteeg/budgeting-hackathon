@@ -38,7 +38,8 @@ interface Turn { role: "user" | "assistant"; text: string }
   category: CategoryId | null,
   remainingAfter: number | null, // category left after purchase
   line: string,                  // what gets spoken (≤60 words)
-  source: "claude" | "mock"
+  source: "claude" | "mock",
+  sig: string                    // HMAC of persona+line, required by /api/speak
 }
 // 400 bad input · 429 rate limited · never 500s to the client (falls back to mock)
 ```
@@ -63,4 +64,4 @@ interface Turn { role: "user" | "assistant"; text: string }
 ```
 
 ## 🔑 Env (server only)
-`ANTHROPIC_API_KEY` · `ELEVENLABS_API_KEY` · `FISH_API_KEY` · `ELEVENLABS_AGENT_ID` · `ELEVENLABS_VOICE_OVERRIDE` · optional `ANTHROPIC_MODEL`
+`ANTHROPIC_API_KEY` · `FISH_API_KEY` · `FISH_VOICE_ID` / `FISH_VOICE_<PERSONA>` · optional `SPEAK_SECRET` · `ELEVENLABS_API_KEY` · `FISH_API_KEY` · `ELEVENLABS_AGENT_ID` · `ELEVENLABS_VOICE_OVERRIDE` · optional `ANTHROPIC_MODEL`
