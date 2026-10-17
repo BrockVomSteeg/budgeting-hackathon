@@ -47,15 +47,17 @@ export async function POST(req: Request) {
   // The phone sends the budget the user has edited in the app; anything malformed falls back to the demo.
   const budget = parseBudget(body.budget) ?? demoBudget;
 
-  if (new URL(req.url).searchParams.get("stream") === "1") return streamed(budget, text, persona, history);
-
+  // Answers that don't need Claude: the distress reply, or the mock when no key is configured.
   const care = distressReply(text);
-  if (care) {
-    const a: AskResponse = { verdict: "info", item: null, amount: null, priceEstimated: false, category: null, remainingAfter: null, line: care, source: "mock" };
-    return reply(a, persona);
-  }
+  const fixed: AskResponse | null = care
+    ? { verdict: "info", item: null, amount: null, priceEstimated: false, category: null, remainingAfter: null, line: care, source: "mock" }
+    : hasClaude()
+      ? null
+      : mockAnswer(budget, text, persona);
 
-  if (!hasClaude()) return reply(mockAnswer(budget, text, persona), persona);
+  if (new URL(req.url).searchParams.get("stream") === "1") return streamed(budget, text, persona, history, fixed);
+
+  if (fixed) return reply(fixed, persona);
   try {
     return reply(await askClaude(budget, text, persona, history), persona);
   } catch (err) {
@@ -72,11 +74,20 @@ export async function POST(req: Request) {
  *   {"t":"say","text":"…","sig":"…"}  a chunk to speak now (first sentence, then the rest)
  *   {"t":"done", …AskResponse}        the full answer (same shape as the normal JSON reply)
  */
-function streamed(budget: Budget, text: string, persona: PersonaId, history: Turn[]): Response {
+function streamed(budget: Budget, text: string, persona: PersonaId, history: Turn[], fixed: AskResponse | null): Response {
   const enc = new TextEncoder();
+  const abort = new AbortController();
+  let closed = false;
   const body = new ReadableStream({
     async start(ctrl) {
-      const send = (o: object) => ctrl.enqueue(enc.encode(JSON.stringify(o) + "\n"));
+      const send = (o: object) => {
+        if (closed) return;
+        try {
+          ctrl.enqueue(enc.encode(JSON.stringify(o) + "\n"));
+        } catch {
+          closed = true; // the phone went away
+        }
+      };
       const said: string[] = [];
       const say = (chunk: string) => {
         said.push(chunk);
@@ -85,18 +96,15 @@ function streamed(budget: Budget, text: string, persona: PersonaId, history: Tur
       const finish = (a: AskResponse, spoken: string[]) => {
         if (!spoken.length) splitForSpeech(a.line).forEach(say);
         send({ t: "done", ...a, sig: signLine(persona, a.line) });
-        ctrl.close();
+        if (!closed) ctrl.close();
+        closed = true;
       };
-      const care = distressReply(text);
-      if (care) {
-        const a: AskResponse = { verdict: "info", item: null, amount: null, priceEstimated: false, category: null, remainingAfter: null, line: care, source: "mock" };
-        return finish(a, []);
-      }
-      if (!hasClaude()) return finish(mockAnswer(budget, text, persona), []);
+      if (fixed) return finish(fixed, []);
       try {
-        const { answer, spoken } = await askClaudeStreaming(budget, text, persona, history, say);
+        const { answer, spoken } = await askClaudeStreaming(budget, text, persona, history, say, abort.signal);
         finish(answer, spoken);
       } catch (err) {
+        if (closed) return;
         console.error("ask: claude stream failed", err instanceof Error ? err.message : err);
         if (said.length) {
           // He already started talking, so the answer is what he said.
@@ -106,6 +114,10 @@ function streamed(budget: Budget, text: string, persona: PersonaId, history: Tur
         // A second full Claude call could outlast the phone's timeout, so answer from the templates now.
         finish(mockAnswer(budget, text, persona), []);
       }
+    },
+    cancel() {
+      closed = true;
+      abort.abort(); // stop paying for a reply nobody will hear
     },
   });
   return new Response(body, { headers: { "content-type": "application/x-ndjson", "cache-control": "no-store" } });

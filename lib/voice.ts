@@ -296,9 +296,12 @@ export function primeAudio() {
 }
 
 let cancelSpeech: (() => void) | null = null;
+// The streamed answer in progress (startAnswer). Separate from cancelSpeech, which each speak() resets.
+let cancelAnswer: (() => void) | null = null;
 
 /** Cuts off the current answer, if one is playing. */
 export function stopSpeaking() {
+  cancelAnswer?.();
   cancelSpeech?.();
 }
 
@@ -420,9 +423,14 @@ export function startAnswer(p: Persona) {
   const chunks: { text: string; sig: string; played: boolean }[] = [];
   let chain: Promise<void> = Promise.resolve();
   if (speakerMode) setAudioSession("playback");
-  cancelSpeech = () => {
+  const cancel = () => {
     cancelled = true;
     stopClips();
+  };
+  cancelAnswer = cancel;
+  const release = () => {
+    if (cancelAnswer === cancel) cancelAnswer = null;
+    if (speakerMode) setAudioSession("auto"); // hand the mic back
   };
   dbg(`answer: ${fallback ? "element fallback" : "web audio"}`);
 
@@ -456,6 +464,7 @@ export function startAnswer(p: Persona) {
         }
       });
     },
+    /** Plays out whatever is left, then hands the audio session back. */
     async end() {
       try {
         await chain;
@@ -477,9 +486,13 @@ export function startAnswer(p: Persona) {
         for (const c of chunks) if (!c.played && !cancelled) await speak(c.text, p, c.sig);
       } finally {
         if (cancelled) stopClips();
-        cancelSpeech = null;
-        if (speakerMode) setAudioSession("auto");
+        release();
       }
+    },
+    /** Gives up on the answer (request failed): stops anything playing and hands the audio session back. */
+    cancel() {
+      cancel();
+      release();
     },
   };
 }

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import type { AskResponse, Budget, PersonaId, Turn } from "./types";
+import type { AskResponse, Budget, CategoryId, PersonaId, Turn } from "./types";
 import { CATEGORY_IDS } from "./types.ts";
 import { categoryLeft, decide } from "./budget.ts";
 import { personas } from "./personas.ts";
@@ -45,6 +45,13 @@ const request = (b: Budget, text: string, persona: PersonaId, history: Turn[], n
   messages: [{ role: "user" as const, content: userPrompt(b, text, history) + note }],
 });
 
+/** The code's math for a purchase, and whether a verdict agrees with it (only no vs. not-no matters). */
+function check(b: Budget, text: string, amount: number, category: unknown) {
+  const cat = (CATEGORY_IDS as readonly string[]).includes(category as string) ? (category as CategoryId) : guessCategory(text);
+  const truth = decide(b, amount, cat);
+  return { category: cat, truth, agrees: (v: unknown) => (truth.verdict === "no") === (v === "no") };
+}
+
 export async function askClaude(
   b: Budget,
   text: string,
@@ -67,9 +74,7 @@ export async function askClaude(
   }
 
   // Code owns the math, estimated prices included. If the model's verdict disagrees, trust the numbers.
-  const category = out.category ?? guessCategory(text);
-  const truth = decide(b, out.amount, category);
-  const agrees = (v: string) => (truth.verdict === "no") === (v === "no");
+  const { category, truth, agrees } = check(b, text, out.amount, out.category);
   if (agrees(out.verdict)) {
     return { ...strip(out), category, verdict: truth.verdict, remainingAfter: truth.remainingAfter, source: "claude" };
   }
@@ -95,8 +100,9 @@ export async function askClaudeStreaming(
   persona: PersonaId,
   history: Turn[],
   onSpeak: (chunk: string) => void,
+  signal?: AbortSignal,
 ): Promise<{ answer: AskResponse; spoken: string[] }> {
-  const stream = getClient().messages.stream(request(b, text, persona, history));
+  const stream = getClient().messages.stream(request(b, text, persona, history), { signal });
   const spoken: string[] = [];
   let checked: "pending" | "ok" | "no" = "pending";
   let json = "";
@@ -114,24 +120,22 @@ export async function askClaudeStreaming(
       }
     }
     if (checked !== "ok" || spoken.length) return;
-    const line = partialLine(json);
-    const end = line ? firstSentenceEnd(line.text) : 0;
+    // trimStart: the final line is trimmed, and what he said must be its prefix.
+    const said = partialLine(json)?.text.trimStart() ?? "";
+    const end = firstSentenceEnd(said);
     if (end) {
-      spoken.push(line!.text.slice(0, end));
+      spoken.push(said.slice(0, end));
       onSpeak(spoken[0]);
     }
   });
   const msg = await stream.finalMessage();
 
   // First call = the reply we just streamed; a retry (if the verdict was wrong) is a normal call.
-  let first = true;
-  const answer = await askClaude(b, text, persona, history, (note = "") => {
-    if (first && !note) {
-      first = false;
-      return Promise.resolve({ stop_reason: msg.stop_reason, parsed_output: msg.parsed_output });
-    }
-    return getClient().messages.parse(request(b, text, persona, history, note));
-  });
+  const answer = await askClaude(b, text, persona, history, (note = "") =>
+    note
+      ? getClient().messages.parse(request(b, text, persona, history, note), { signal })
+      : Promise.resolve({ stop_reason: msg.stop_reason, parsed_output: msg.parsed_output }),
+  );
   const line = answer.line.trim();
   if (!spoken.length) return { answer: { ...answer, line }, spoken };
   if (line.startsWith(spoken[0])) {

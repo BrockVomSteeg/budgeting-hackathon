@@ -47,6 +47,8 @@ function App() {
   const [heard, setHeard] = useState("");
   const [error, setError] = useState("");
   const [answer, setAnswer] = useState<AskResponse | null>(null);
+  // What Gordon has said of the answer being streamed, shown until the full answer arrives.
+  const [live, setLive] = useState("");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [open, setOpen] = useState<Open>(null);
   const [compact, setCompact] = useState(false);
@@ -110,6 +112,8 @@ function App() {
     setError("");
     setHeard(text);
     setStatus("thinking");
+    setAnswer(null); // the bubble mustn't show the previous answer while he speaks this one
+    setLive("");
     playFiller(); // "Right, let me have a look…" while Claude thinks
     const prior = messages.slice(-LIMITS.historyMax).map(({ role, text }) => ({ role, text }));
     setMessages((m) => [...m, { role: "user", text }]);
@@ -138,6 +142,7 @@ function App() {
           if (ev.t === "say") {
             dbg(`ask: say "${ev.text}"`);
             voice.say(ev.text, ev.sig);
+            setLive((l) => (l ? `${l} ${ev.text}` : ev.text));
             setStatus("speaking");
           } else {
             a = ev; // the full answer (the extra "t" field is harmless)
@@ -152,7 +157,7 @@ function App() {
       setStatus("speaking");
       await voice.end();
     } catch (e) {
-      stopSpeaking();
+      voice.cancel();
       dbg(`ask: failed ${e instanceof Error ? e.message : e}`);
       setError(e instanceof Error ? e.message : "Something broke.");
     }
@@ -233,7 +238,7 @@ function App() {
   const label = { idle: "Tap to ask Gordon", listening: "Listening… just stop talking", thinking: "Thinking…", speaking: "Tap to skip" }[status];
   const mood = status !== "listening" && status !== "thinking" && answer?.verdict === "yes" ? "happy" : "angry";
   const bubble =
-    status === "listening" ? heard || "I'm listening…" : status === "thinking" ? "…" : error || answer?.line || GREETING;
+    status === "listening" ? heard || "I'm listening…" : status === "thinking" ? "…" : error || answer?.line || live || GREETING;
   const showBubble = !compact || status !== "idle";
 
   return (
