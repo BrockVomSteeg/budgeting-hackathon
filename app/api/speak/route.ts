@@ -3,6 +3,7 @@ import { rateLimited } from "@/lib/ratelimit";
 import { verifyLine } from "@/lib/sign";
 import { LIMITS } from "@/lib/types";
 import type { PersonaId } from "@/lib/types";
+import { paidKey } from "@/lib/keys";
 
 export const runtime = "nodejs";
 
@@ -56,8 +57,8 @@ async function elevenTts(key: string, text: string, voiceId: string): Promise<Re
 // GET so an <audio> element can stream it: playback starts on the first bytes, not the whole clip.
 // Fish Audio first (if this persona has a Fish voice), then ElevenLabs, else 204 so the browser voice takes over.
 export async function GET(req: Request) {
-  const fishKey = process.env.FISH_API_KEY;
-  const elevenKey = process.env.ELEVENLABS_API_KEY;
+  const fishKey = paidKey("FISH_API_KEY");
+  const elevenKey = paidKey("ELEVENLABS_API_KEY");
   if ((!fishKey && !elevenKey) || rateLimited(req)) return noAudio();
 
   const q = new URL(req.url).searchParams;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { rateLimited } from "@/lib/ratelimit";
+import { paidKey } from "@/lib/keys";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,7 +8,7 @@ export const dynamic = "force-dynamic";
 // Mints a short-lived WebRTC token so the ElevenLabs API key never reaches the browser.
 // 204 = live agent not configured; the client falls back to tap-to-talk mode.
 export async function GET(req: Request) {
-  const key = process.env.ELEVENLABS_API_KEY;
+  const key = paidKey("ELEVENLABS_API_KEY");
   const agentId = process.env.ELEVENLABS_AGENT_ID;
   if (!key || !agentId) return new Response(null, { status: 204 });
   if (rateLimited(req, 10)) return NextResponse.json({ error: "slow down" }, { status: 429 });

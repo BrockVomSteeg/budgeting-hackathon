@@ -88,6 +88,13 @@ function App() {
   // Warm the server so the first question doesn't wait for a cold start.
   useEffect(() => {
     for (const path of ["/api/ask", "/api/transcribe", "/api/speak"]) fetch(path, { cache: "no-store" }).catch(() => {});
+    // Free mode (paid APIs off): skip server speech-to-text so the first tap uses the phone's own recognizer.
+    fetch("/api/health", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((h: { paidApis?: boolean; fishKey?: boolean }) => {
+        if (!h.paidApis || !h.fishKey) serverStt.current = false;
+      })
+      .catch(() => {});
     preloadFillers();
   }, []);
 

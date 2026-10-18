@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { paidKey } from "./keys.ts";
 import type { AskResponse, Budget, CategoryId, LastItem, PersonaId, Turn } from "./types";
 import { CATEGORY_IDS } from "./types.ts";
 import { categoryLeft, decide } from "./budget.ts";
@@ -33,7 +34,7 @@ const strip = <T extends { topic: unknown }>(r: T): Omit<T, "topic"> => {
 let client: Anthropic | null = null;
 const getClient = () => (client ??= new Anthropic({ timeout: 10_000, maxRetries: 0 }));
 
-export const hasClaude = () => Boolean(process.env.ANTHROPIC_API_KEY);
+export const hasClaude = () => Boolean(paidKey("ANTHROPIC_API_KEY"));
 
 /** One Claude call; `note` is appended to the user message. Tests pass a fake. */
 export type Call = (note?: string) => Promise<{ stop_reason: string | null; parsed_output: z.infer<typeof Reply> | null }>;

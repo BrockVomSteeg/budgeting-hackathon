@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { rateLimited } from "@/lib/ratelimit";
 import { LIMITS } from "@/lib/types";
+import { paidKey } from "@/lib/keys";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,7 @@ export function GET() {
 }
 
 export async function POST(req: Request) {
-  const key = process.env.FISH_API_KEY;
+  const key = paidKey("FISH_API_KEY");
   if (!key) return NextResponse.json({ error: "stt off" }, { status: 501 });
   if (rateLimited(req, 30)) return NextResponse.json({ error: "slow down" }, { status: 429 });
 

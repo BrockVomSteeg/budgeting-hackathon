@@ -1,5 +1,7 @@
 # Can I Afford It? 💸🎙️
 
+> 🗄️ **Retired after touch ./SAND (LA Tech Week, Oct 17 2026).** This repo is archived (read-only). The live demo runs in **free mode**: paid APIs are switched off (`PAID_APIS_ENABLED` unset), so Gordon uses template roasts, the browser voice and the browser's speech recognition. Want to keep building? Fork it and deploy with your own keys and `PAID_APIS_ENABLED=1`.
+
 Ask out loud: *"Can I afford a $400 jacket?"* It does the math, and if the answer is no, Gordon Ramsay roasts you. Every roast is generated live by Claude. Gordon only answers "can I afford X?" questions, nothing else.
 
 Built at touch ./SAND (LA Tech Week 2026). Docs: [SPEC](SPEC.md) · [DEMO](DEMO.md) · [CONTRACT](CONTRACT.md) · [TASKS](TASKS.md) · [PERSONA_GORDON](PERSONA_GORDON.md) · [AGENT_SETUP](AGENT_SETUP.md) (optional live call)
@@ -28,6 +30,7 @@ The app checks it against the budget in the phone's ledger (transactions, catego
 
 ## 🔐 Security
 - Keys only in Vercel env vars or `.env.local` (gitignored). Never `NEXT_PUBLIC_*`.
+- Paid APIs are off unless `PAID_APIS_ENABLED=1` (`lib/keys.ts`), so leftover keys are never used.
 - Browser only talks to `/api/*`. Input length caps + per-IP rate limit. `/api/speak` only voices lines signed by `/api/ask` (`SPEAK_SECRET`).
 - CI runs gitleaks on every push. Set a monthly spend cap in the Anthropic console.
 

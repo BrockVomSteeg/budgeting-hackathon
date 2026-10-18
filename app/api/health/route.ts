@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { MODEL } from "@/lib/claude";
+import { paidApisEnabled } from "@/lib/keys";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 export function GET() {
   return NextResponse.json(
     {
+      paidApis: paidApisEnabled(),
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
       model: MODEL,
       fishKey: Boolean(process.env.FISH_API_KEY),
